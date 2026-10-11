@@ -20,9 +20,9 @@ async function depart(page: Page) {
             y: rect.top + rect.height/2 + (b.y - (minY+maxY)/2)*cell };
     });
     await page.mouse.click(target.x, target.y);
-    const estimate = page.getByText(/\d+ cells · \d+ days?|Estimated \d+–\d+ days/);
+    const estimate = page.getByText(/\d+ days? · [\d.]+k? km|Estimated \d+–\d+ days/);
     await expect(estimate).toBeVisible();
-    const preciseDays = (await estimate.innerText()).match(/· (\d+) days/);
+    const preciseDays = (await estimate.innerText()).match(/(\d+) days · [\d.]+k? km/);
     await page.getByRole('button', { name: 'Travel', exact: true }).click();
     await expect.poll(async () => (await read(page)).context.travel?.leg).toBe(1);
     const journey = (await read(page)).journey;
@@ -87,7 +87,7 @@ test('Abandon clears the route without arriving or spending another day', async 
 
 test('external departure picker uses the map preview before moving', async ({ page }) => {
     await page.evaluate(() => (window as any).worldmapTest.plan());
-    await expect(page.getByText(/\d+ cells · \d+ days?|minutes.*local travel/)).toBeVisible();
+    await expect(page.getByText(/\d+ days? · [\d.]+k? km|(?:minutes?|\d+ h).*local travel/)).toBeVisible();
     expect((await read(page)).context.worldDay).toBe(10);
     expect((await read(page)).context.travel).toBeNull();
     await page.getByRole('button', { name: 'Travel', exact: true }).click();
@@ -165,7 +165,7 @@ test('a discovered site becomes a fixed ledger destination and survives identity
     if (await enter.isVisible()) await enter.click();
     else {
         await page.getByRole('button', { name: 'Visit site', exact: true }).click();
-        await expect(page.getByText(/\d+ cells · \d+ days?|minutes.*local travel/)).toBeVisible();
+        await expect(page.getByText(/\d+ days? · [\d.]+k? km|(?:minutes?|\d+ h).*local travel/)).toBeVisible();
         await page.getByRole('button', { name: 'Travel', exact: true }).click();
         for (let i = 0; i < 40; i++) {
             const state = await read(page);
@@ -183,9 +183,9 @@ test('a discovered site becomes a fixed ledger destination and survives identity
     expect(anchor).toMatchObject({ x: site.x, y: site.y, name: 'Quiet Bell Abbey' });
     expect((await read(page)).ledger.filter((entry: any) => entry.id === id)).toHaveLength(1);
     const finishPreview = async (destination: string) => {
-        const estimate = page.getByText(/\d+ cells · \d+ days?|minutes.*local travel/);
+        const estimate = page.getByText(/\d+ days? · [\d.]+k? km|(?:minutes?|\d+ h).*local travel/);
         await expect(estimate).toBeVisible();
-        const days = Number((await estimate.innerText()).match(/· (\d+) days?/)![1]);
+        const days = Number((await estimate.innerText()).match(/(\d+) days? · /)![1]);
         const day = (await read(page)).context.worldDay;
         await page.getByRole('button', { name: 'Travel', exact: true }).click();
         await expect.poll(async () => (await read(page)).context.worldDay).toBe(day + 1);
@@ -286,7 +286,7 @@ test('an actual floating map window updates after Continue without reopening', a
     await page.getByRole('button', { name: 'Continue →', exact: true }).click();
     await expect(canvas).toHaveAttribute('data-worldmap-party-cell', `${journey.checkpoints[1].x},${journey.checkpoints[1].y}`);
     await expect(page.getByText(/camp 2 of .*day 12/)).toBeVisible();
-    await expect(page.getByText('OVERWORLD · Day 12', { exact: true })).toBeVisible();
+    await expect(page.getByText('Day 12 · On the road to Birch', { exact: true })).toBeVisible();
 });
 
 
@@ -371,7 +371,7 @@ test('the Hours switch persists, reaches story context and walks the clock an ho
     expect(await page.evaluate(() => (window as any).worldmapTest.sceneContext())).toMatch(/Birch \(remote, \d+–\d+h\)/);
     await page.getByRole('button', { name: 'Done editing', exact: true }).click();
     await page.evaluate(() => (window as any).worldmapTest.plan());
-    await expect(page.getByText(/\d+ cells · \d+ hours?|Estimated \d+–\d+ hours/)).toBeVisible();
+    await expect(page.getByText(/\d+ hours? · [\d.]+k? km|Estimated \d+–\d+ hours/)).toBeVisible();
     await page.getByRole('button', { name: 'Travel', exact: true }).click();
     await expect.poll(async () => (await read(page)).context.travel?.leg).toBe(1);
     const started = await read(page);
@@ -409,7 +409,7 @@ test('an unexplored empty cell can be previewed, travelled to and revisited with
     expect(before.exploration.cells).not.toContain(`${target.x},${target.y}`);
     expect(before.exploration.generatedCells).not.toContain(`${target.x},${target.y}`);
     await page.mouse.move(target.screenX, target.screenY);
-    await expect(page.getByText(`${target.x}, ${target.y} · Not generated — explore to reveal`, { exact: true })).toBeVisible();
+    await expect(page.getByText(`Unexplored · ${target.x}, ${target.y}`, { exact: true })).toBeVisible();
     await page.mouse.click(target.screenX, target.screenY, { button: 'right' });
     await expect(page.getByRole('button', { name: 'Travel here', exact: true })).toBeEnabled();
     await page.getByRole('button', { name: 'Travel here', exact: true }).click();
@@ -672,18 +672,18 @@ test('unexplored ground routes show estimates without revealing the future path 
     await page.waitForFunction(() => !!(window as any).worldmapTest);
     const before = await read(page);
     await page.evaluate(() => (window as any).worldmapTest.plan('foot'));
-    await expect(page.getByText(/Estimated .*route uncertain/)).toBeVisible();
-    await expect(page.getByText(/Dashed line shows direction only/)).toBeVisible();
+    await expect(page.getByText(/Estimated .*uncharted route/)).toBeVisible();
+    await expect(page.getByText(/dashed line is a heading/)).toBeVisible();
     await expect(page.locator('canvas')).toHaveAttribute('data-worldmap-route-certainty', 'estimated');
     expect((await read(page)).exploration).toEqual(before.exploration);
     expect((await read(page)).context.worldDay).toBe(before.context.worldDay);
     await page.screenshot({ path: testInfo.outputPath('uncertain-preview.png') });
     await page.getByRole('button', { name: 'Travel', exact: true }).click();
     await expect.poll(async () => (await read(page)).context.travel?.leg).toBe(1);
-    await expect(page.getByText(/route uncertain remaining/)).toBeVisible();
+    await expect(page.getByText(/Estimated .* more days · uncharted route/)).toBeVisible();
     await page.reload();
     await page.waitForFunction(() => !!(window as any).worldmapTest);
-    await expect(page.getByText(/route uncertain remaining/)).toBeVisible();
+    await expect(page.getByText(/Estimated .* more days · uncharted route/)).toBeVisible();
     expect((await read(page)).context.worldDay).toBe(before.context.worldDay + 1);
 });
 
@@ -714,9 +714,12 @@ test('world authoring is opt-in and leaving it discards the unsaved road draft',
 // The cell under a screen point, as the map itself reports it.
 async function hoverCell(page: Page, x: number, y: number) {
     await page.mouse.move(x, y);
-    const text = await page.locator('[data-worldmap-hover]').innerText();
-    const match = text.match(/^(\d+), (\d+) · /);
-    expect(match, 'hover readout names the cell: ' + text).toBeTruthy();
+    const hover = page.locator('[data-worldmap-hover]');
+    await expect(hover).toBeVisible();
+    const cell = await hover.getAttribute('data-worldmap-hover-cell');
+    const match = (cell ?? '').match(/^(\d+),(\d+)$/);
+    expect(match, 'hover readout names the cell: ' + cell).toBeTruthy();
+    expect(await hover.innerText()).toMatch(new RegExp(` · ${match![1]}, ${match![2]}$`));
     return { x: Number(match![1]), y: Number(match![2]) };
 }
 
@@ -733,7 +736,7 @@ test('a campaign with no current place starts at a clicked cell and can then tra
     });
     await page.reload();
     await page.waitForFunction(() => !!(window as any).worldmapTest);
-    await expect(page.getByText(/no current place — click a cell to start/)).toBeVisible();
+    await expect(page.getByText(/Party not placed — click the map to start/)).toBeVisible();
     const box = (await page.locator('canvas').boundingBox())!;
     const point = { x: box.x + box.width / 2 + 3, y: box.y + box.height / 2 + 3 };
     const start = await hoverCell(page, point.x, point.y);
@@ -749,7 +752,7 @@ test('a campaign with no current place starts at a clicked cell and can then tra
     expect(started.context.travel).toBeNull();
     expect(started.journey).toBeNull();
     expect(started.messages).toEqual([]);
-    await expect(page.getByText(/no current place/)).toBeHidden();
+    await expect(page.getByText(/Party not placed/)).toBeHidden();
     await page.reload();
     await page.waitForFunction(() => !!(window as any).worldmapTest);
     expect((await read(page)).context.currentPlaceId).toBe(id);
@@ -764,7 +767,7 @@ test('a campaign with no current place starts at a clicked cell and can then tra
     const goalPoint = { x: box.x + box.width / 2 + 3 * 16, y: box.y + box.height / 2 };
     expect(await hoverCell(page, goalPoint.x, goalPoint.y)).toEqual(goal);
     await page.mouse.click(goalPoint.x, goalPoint.y);
-    await expect(page.getByText(/minutes.*local travel|\d+ cells · \d+ days?/)).toBeVisible();
+    await expect(page.getByText(/(?:minutes?|\d+ h).*local travel|\d+ days? · [\d.]+k? km/)).toBeVisible();
     await page.getByRole('button', { name: 'Travel', exact: true }).click();
     await expect.poll(async () => (await read(page)).context.currentPlaceId).not.toBe(id);
     const arrived = await read(page);

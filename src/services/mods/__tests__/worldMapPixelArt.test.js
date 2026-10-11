@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { hillshadeMultiplier } from '../../../../public/bundled-mods/worldmap/renderer.js';
 import { observedTerrainStore } from '../../../../public/bundled-mods/worldmap/exploration.js';
-import { PIXEL_PALETTE, TERRAIN_VARIANTS, terrainVariant, paintTerrainVariant, paintPixelCell, paintPixelFog, paintPixelRelief, paintPixelShadow } from '../../../../public/bundled-mods/worldmap/pixelArt.js';
+import { PIXEL_PALETTE, TERRAIN_VARIANTS, terrainVariant, paintTerrainVariant, paintPixelCell, buildFogMask, FOG_KNOWN_ALPHA, paintPixelRelief, paintPixelShadow } from '../../../../public/bundled-mods/worldmap/pixelArt.js';
 
 function raster(size = 16) {
     const pixels = Array(size * size).fill('');
@@ -42,31 +42,57 @@ describe('pixel terrain variants', () => {
         }
         expect([...found].sort()).toEqual([0, 1, 2, 3]);
     });
-    it('retains connected shoreline strips on every land variant', () => {
+    it('draws a beach along a straight coast and keeps the inland half of every cell dry', () => {
+        const shore = new Set(['#f0dfa0', '#b5a26b', '#91cfdd', PIXEL_PALETTE.ocean]);
+        let beach = 0;
         for (let x = 0; x < 16; x++) {
             const store = { getCell: (cx, cy) => ({ biome: cy === -1 ? 'ocean' : 'plains' }) };
             const { ctx, pixels } = raster();
             paintPixelCell(ctx, store, x, 0, 0, 0, 16);
-            expect(pixels.slice(0, 16)).toEqual(Array(16).fill('#f0dfa0'));
-            expect(pixels.slice(16, 32)).toEqual(Array(16).fill('#b5a26b'));
+            // The water line wobbles a little either side of the cell edge, so
+            // a given column may keep its beach in the cell above; the coast as
+            // a whole has one, and it never reaches the middle of the land cell.
+            beach += pixels.slice(0, 64).filter(color => color === '#f0dfa0' || color === '#b5a26b').length;
+            expect(pixels.slice(128).some(color => shore.has(color)), `cell ${x}`).toBe(false);
         }
+        expect(beach).toBeGreaterThan(64);
     });
 });
 
 
 describe('soft terrain boundaries', () => {
-    it('blends observed biome boundaries while keeping marks inside their cell', () => {
-        const store = { getCell: (x) => ({ biome: x < 0 ? 'volcanic' : 'plains' }) };
+    it('rounds a staircase corner into the neighbouring biome and keeps the cell centre', () => {
+        // Plains with volcanic ground east, south and south-east: the square
+        // corner is cut, as a drawn map would show it.
+        const store = { getCell: (x, y) => ({ biome: (x > 0 && y >= 0) || (y > 0 && x >= 0) ? 'volcanic' : 'plains' }) };
         const { ctx, pixels } = raster();
         paintPixelCell(ctx, store, 0, 0, 0, 0, 16);
-        expect(pixels.some(color => color.startsWith('rgb('))).toBe(true);
+        expect(pixels[15 * 16 + 15]).toBe(PIXEL_PALETTE.volcanic);
+        expect(pixels[0]).not.toBe(PIXEL_PALETTE.volcanic);
         expect(pixels[8 * 16 + 8]).toBe(PIXEL_PALETTE.plains);
     });
-    it('does not introduce terrain colour from unobserved neighbours', () => {
-        const store = { getCell: (x, y) => x === 0 && y === 0 ? { biome: 'plains' } : null };
+    it('keeps a lone cell visible as a rounded core rather than smoothing it away', () => {
+        const store = { getCell: (x, y) => ({ biome: x === 0 && y === 0 ? 'ocean' : 'plains' }) };
         const { ctx, pixels } = raster();
         paintPixelCell(ctx, store, 0, 0, 0, 0, 16);
-        expect(pixels.some(color => color.startsWith('rgb('))).toBe(false);
+        expect(['#3986b5', '#4f9ec9', '#72b9d6', '#286e9c']).toContain(pixels[8 * 16 + 8]);
+        expect(pixels[0]).toBe(PIXEL_PALETTE.plains);
+    });
+    it('paints an unobserved neighbourhood exactly like its own biome', () => {
+        const hidden = { getCell: (x, y) => x === 0 && y === 0 ? { biome: 'plains' } : null };
+        const same = { getCell: () => ({ biome: 'plains' }) };
+        const a = raster(), b = raster();
+        paintPixelCell(a.ctx, hidden, 0, 0, 0, 0, 16);
+        paintPixelCell(b.ctx, same, 0, 0, 0, 0, 16);
+        expect(a.pixels).toEqual(b.pixels);
+    });
+    it('keeps a zoomed-out cell to flat colour', () => {
+        const store = { getCell: () => ({ biome: 'plains' }) };
+        for (let x = 0; x < 8; x++) {
+            const { ctx, pixels } = raster(4);
+            paintPixelCell(ctx, store, x, 0, 0, 0, 4);
+            expect(pixels).toEqual(Array(16).fill(PIXEL_PALETTE.plains));
+        }
     });
     it('gives adjacent farmland cells one coherent crop orientation', () => {
         const store = { getCell: () => ({ biome: 'farmland' }) };
@@ -77,30 +103,50 @@ describe('soft terrain boundaries', () => {
     });
     it('keeps unexplored cells fully opaque even with fog disabled', () => {
         for (const fog of [true, false]) {
-            const { ctx, pixels } = raster();
-            paintPixelFog(ctx, new Set(['1,0']), new Set(['1,0']), fog, 0, 0, 0, 0, 16);
-            expect(pixels).toEqual(Array(256).fill('#17252d'));
+            // Cell 0 is unexplored, cell 1 explored and in sight; 4 samples a side.
+            const mask = buildFogMask(new Set(['1,0']), new Set(['1,0']), fog, 0, 0, 2, 1, 4);
+            for (let j = 0; j < 4; j++) {
+                expect([...mask.slice(j * 8, j * 8 + 4)]).toEqual([255, 255, 255, 255]);
+                expect([...mask.slice(j * 8 + 4, j * 8 + 8)]).toEqual([0, 0, 0, 0]);
+            }
         }
     });
-    it('adds a graded fog fringe inside known terrain without covering its centre', () => {
-        const generated = new Set();
-        for (let y = -1; y <= 1; y++) for (let x = -1; x <= 0; x++) generated.add(`${x},${y}`);
-        const { ctx, pixels } = raster();
-        paintPixelFog(ctx, generated, generated, true, 0, 0, 0, 0, 16);
-        expect(pixels[8 * 16 + 8]).toBe('');
-        expect(new Set(pixels.filter(Boolean)).size).toBeGreaterThan(1);
+    it('dims explored ground out of sight and fades it in a circle around the party', () => {
+        const generated = new Set(), visible = new Set();
+        for (let y = 0; y < 13; y++) for (let x = 0; x < 13; x++) {
+            generated.add(`${x},${y}`);
+            if (Math.hypot(x - 6, y - 6) <= 2) visible.add(`${x},${y}`);
+        }
+        const sight = { x: 6.5, y: 6.5, r: Math.sqrt(visible.size / Math.PI) + 0.3 };
+        const mask = buildFogMask(generated, visible, true, 0, 0, 13, 13, 2, sight);
+        const at = (cx, cy) => mask[(cy * 2) * 26 + cx * 2];
+        const known = Math.round(FOG_KNOWN_ALPHA * 255);
+        expect(at(6, 6)).toBe(0);
+        expect(at(0, 0)).toBe(known);
+        // The fade is graded through the sight edge rather than a hard step.
+        const ramp = [6, 7, 8, 9, 10, 11].map(x => at(x, 6));
+        expect(ramp).toEqual([...ramp].sort((a, b) => a - b));
+        expect(ramp.some(value => value > 0 && value < known)).toBe(true);
+        // With fog off, explored ground is clear whatever the sight.
+        expect(buildFogMask(generated, visible, false, 0, 0, 13, 13, 2, sight).every(value => value === 0)).toBe(true);
     });
 });
 
 
 describe('elevation and shadows', () => {
     const shade = (ex, ey) => hillshadeMultiplier(ex, ey, 0.12);
-    it('keeps flat land neutral and water unshaded', () => {
-        for (const biome of ['plains', 'ocean']) {
-            const {ctx,pixels} = raster();
-            paintPixelRelief(ctx, {getCell: () => ({biome,elevation:0.5})}, 0, 0, 0, 0, 16, shade);
-            expect(pixels).toEqual(Array(256).fill(''));
-        }
+    it('keeps flat land neutral', () => {
+        const {ctx,pixels} = raster();
+        paintPixelRelief(ctx, {getCell: () => ({biome:'plains',elevation:0.5})}, 0, 0, 0, 0, 16, shade);
+        expect(pixels).toEqual(Array(256).fill(''));
+    });
+    it('shades open sea darker and the shallows near a coast lighter', () => {
+        const deep = raster();
+        paintPixelRelief(deep.ctx, {getCell: () => ({biome:'ocean',elevation:-0.9})}, 0, 0, 0, 0, 16, shade);
+        expect(deep.pixels.every(color => color.startsWith('rgba(14,38,74,'))).toBe(true);
+        const shallow = raster();
+        paintPixelRelief(shallow.ctx, {getCell: (x) => (x < 0 ? {biome:'plains',elevation:0.1} : {biome:'ocean',elevation:-0.02})}, 0, 0, 0, 0, 16, shade);
+        expect(shallow.pixels.every(color => color.startsWith('rgba(196,236,232,'))).toBe(true);
     });
     it('lights slopes facing north-west and darkens opposing slopes', () => {
         for (const direction of [1,-1]) {

@@ -400,7 +400,7 @@ describe('World Map — a party with no spot is offered Start here', () => {
 
     it('the HUD says when there is no current place', () => {
         const cleanupRenderer = mount(null);
-        expect(root.textContent).toContain('OVERWORLD · Day 12 · no current place — click a cell to start');
+        expect(root.textContent).toContain('Day 12 · Party not placed — click the map to start');
         cleanupRenderer();
     });
 });

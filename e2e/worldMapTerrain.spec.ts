@@ -334,7 +334,8 @@ test.describe('World Map terrain — a real browser, a real paint', () => {
         });
 
         const panel = page.locator(sel);
-        await expect(panel.getByText('camp 3 of 8')).toBeVisible();
+        // Eight legs are seven camps and an arrival (Milestone 1).
+        await expect(panel.getByText('camp 3 of 7')).toBeVisible();
         await expect(panel.getByRole('button', { name: 'Continue →' })).toBeVisible();
         await expect(panel.getByRole('button', { name: 'Abandon' })).toBeVisible();
         // Planning chrome is gone while travelling — the mode selector is not

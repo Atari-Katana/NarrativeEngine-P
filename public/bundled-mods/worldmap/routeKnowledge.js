@@ -10,6 +10,7 @@ export function routeKnowledge(cells, days, mode, explored = new Set(), roads = 
 export function legWords(unit) {
     return unit === 'hours' ? { one: 'hour', many: 'hours', stop: 'stop' } : { one: 'day', many: 'days', stop: 'camp' };
 }
-export function estimateLabel(estimate, unit) {
-    return 'Estimated ' + estimate.minDays + '–' + estimate.maxDays + ' ' + legWords(unit).many + ' · route uncertain';
+/** `remaining` reads the range as what is left of a journey already under way. */
+export function estimateLabel(estimate, unit, remaining = false) {
+    return 'Estimated ' + estimate.minDays + '–' + estimate.maxDays + ' ' + (remaining ? 'more ' : '') + legWords(unit).many + ' · uncharted route';
 }

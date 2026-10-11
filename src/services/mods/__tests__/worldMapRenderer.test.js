@@ -288,13 +288,15 @@ describe('World Map renderer — pan does not invalidate tiles (§11)', () => {
         cleanupRenderer();
     });
 
-    it('the hover readout leads with the cell coordinates', () => {
+    it('the hover readout names the terrain, then the cell coordinates', () => {
         const snapshot = makeSnapshot({
             anchors: [{ locationId: 'a', name: 'Aethelgard', x: 500, y: 500, source: 'lore' }],
         });
         const cleanupRenderer = mountMapRenderer(root, { getSnapshot: () => snapshot });
         root.querySelector('canvas').dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientX: 450 + 32 * 2, clientY: 320 - 32 }));
-        expect(root.querySelector('[data-worldmap-hover]').textContent).toMatch(/^502, 499 · [A-Z]/);
+        const hover = root.querySelector('[data-worldmap-hover]');
+        expect(hover.textContent).toMatch(/^[A-Z][a-z ]+ · 502, 499$/);
+        expect(hover.dataset.worldmapHoverCell).toBe('502,499');
         cleanupRenderer();
     });
     it('getSnapshot returns the same object identity across two calls with no intervening change', async () => {
