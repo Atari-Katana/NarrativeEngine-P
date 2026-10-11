@@ -1,0 +1,20 @@
+{
+    "id": "player-journal",
+    "name": "Journal",
+    "version": "1.0.0",
+    "description": "A private journal your character keeps. Write entries with checklists and simple formatting, and type @ to link an NPC, a place or your character. Nothing in it reaches the story on its own: Remind GM sends an entry with your next message as an out-of-character note, Show in scene sends it as shown or read aloud in the story, and Ask GM can read the entries you have not marked Private.",
+    "author": "Narrative Engine",
+    "tables": [
+        { "name": "entries", "recordShape": "array", "label": "Journal entries" },
+        { "name": "meta", "recordShape": "single-object", "label": "Journal state" }
+    ],
+    "native": {
+        "js": "index.js",
+        "css": "style.css",
+        "hooks": {
+            "activate": "onActivate",
+            "disable": "onDisable"
+        },
+        "generateInterceptor": "interceptPrompt"
+    }
+}
