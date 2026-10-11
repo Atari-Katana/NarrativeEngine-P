@@ -5,7 +5,8 @@ import type { LocaleCode } from '../i18n/types';
 export type ApiFormat = 'openai' | 'ollama' | 'claude' | 'gemini' | 'comfyui' | 'openrouter';
 
 /**
- * Native ComfyUI image-generation settings (scene images only). Attached to an
+ * Native ComfyUI image-generation settings (scene images, NPC portraits and location
+ * illustrations — all routed through the server's ComfyUI provider). Attached to an
  * image-role LLMProvider whose apiFormat is 'comfyui'. When customWorkflowJson is
  * blank the server falls back to a built-in basic txt2img graph. The provider's
  * modelName is the checkpoint name substituted into that built-in graph (%model%).

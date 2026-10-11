@@ -265,6 +265,67 @@ describe('Scene Images Router & Services', () => {
         expect(fs.existsSync(diskPath)).toBe(true);
     });
 
+    it('POST /api/images/comfyui drives ComfyUI with the provider settings and returns a data URI', async () => {
+        // Portraits/location art send the store's provider as the override config.
+        const imageConfig = {
+            endpoint: 'http://localhost:7801/ComfyBackendDirect/',
+            modelName: 'krea2_turbo_fp8_scaled.safetensors',
+            apiFormat: 'comfyui',
+            comfyUi: { steps: 8, cfgScale: 1, sampler: 'euler', scheduler: 'beta57', denoisingStrength: 1 },
+        };
+        const promptId = 'portrait_comfy_1';
+        const pngBuffer = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+        let queued = null;
+        const fetchMock = vi.fn((url, init) => {
+            if (url.endsWith('/prompt')) {
+                queued = JSON.parse(init.body).prompt;
+                return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ prompt_id: promptId }), text: () => Promise.resolve('') });
+            }
+            if (url.includes(`/history/${promptId}`)) {
+                return Promise.resolve({
+                    ok: true,
+                    status: 200,
+                    json: () => Promise.resolve({
+                        [promptId]: {
+                            outputs: { '9': { images: [{ filename: 'NarrativeEngine_00002_.png', subfolder: '', type: 'output' }] } },
+                            status: { status_str: 'success', completed: true },
+                        },
+                    }),
+                    text: () => Promise.resolve(''),
+                });
+            }
+            if (url.includes('/view?')) {
+                return Promise.resolve({ ok: true, status: 200, arrayBuffer: () => Promise.resolve(pngBuffer.buffer.slice(0)) });
+            }
+            return Promise.reject(new Error(`Unexpected fetch: ${url}`));
+        });
+        vi.stubGlobal('fetch', fetchMock);
+
+        const res = await request(app)
+            .post('/api/images/comfyui')
+            .send({ prompt: 'a weathered sellsword', negativePrompt: 'text', width: 896, height: 1152, imageConfig });
+
+        expect(res.status).toBe(200);
+        expect(res.body.dataUri).toBe(`data:image/png;base64,${Buffer.from(pngBuffer).toString('base64')}`);
+        // Trailing slash on the SwarmUI pass-through URL must not double up.
+        expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:7801/ComfyBackendDirect/prompt');
+
+        const sampler = Object.values(queued).find((n) => n.class_type === 'KSampler');
+        expect(sampler.inputs).toMatchObject({ steps: 8, cfg: 1, sampler_name: 'euler', scheduler: 'beta57', denoise: 1 });
+        const latent = Object.values(queued).find((n) => n.class_type === 'EmptyLatentImage');
+        expect(latent.inputs).toMatchObject({ width: 896, height: 1152 });
+    });
+
+    it('POST /api/images/comfyui refuses providers that are not ComfyUI', async () => {
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+        const res = await request(app)
+            .post('/api/images/comfyui')
+            .send({ prompt: 'x', imageConfig: { endpoint: 'https://api.openai.com/v1', modelName: 'gpt-image-1', apiFormat: 'openai' } });
+        expect(res.status).toBe(400);
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
     it('DELETE /api/scene-images/attachment safely deletes target file within campaign dir', async () => {
         const campDir = path.join(tmpDir, 'campaigns', 'test_camp_123', 'scene-images');
         fs.mkdirSync(campDir, { recursive: true });

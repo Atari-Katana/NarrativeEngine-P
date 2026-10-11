@@ -51,6 +51,30 @@ function isValidImageBuffer(buf) {
     return false;
 }
 
+function imageMimeType(buf) {
+    if (buf[0] === 0xff && buf[1] === 0xd8) return 'image/jpeg';
+    if (buf.length >= 12 && buf.toString('utf-8', 8, 12) === 'WEBP') return 'image/webp';
+    if (buf.toString('utf-8', 0, 3) === 'GIF') return 'image/gif';
+    return 'image/png';
+}
+
+/**
+ * One-off native ComfyUI image (NPC portraits, location illustrations) returned as a
+ * `data:` URI rather than written to a campaign folder — the client hands it to
+ * /api/assets/download like any other provider's image. Uses the same workflow and
+ * comfyUi settings (steps/cfg/sampler/scheduler/denoise) as scene images.
+ */
+export async function generateComfyImageDataUri({ config, prompt, negativePrompt, width, height }) {
+    if (!config || !config.endpoint) throw new Error('Image AI is not configured');
+    if (!prompt) throw new Error('Missing prompt');
+
+    const imageBuffer = await generateComfyUIImage({ config, prompt, negativePrompt, width, height });
+    if (!isValidImageBuffer(imageBuffer)) {
+        throw new Error('ComfyUI response was not a valid binary image (received invalid format or empty output)');
+    }
+    return `data:${imageMimeType(imageBuffer)};base64,${imageBuffer.toString('base64')}`;
+}
+
 export async function generateSceneImage({ campaignId, promptPackage, config }) {
     if (!campaignId) throw new Error('Missing campaignId');
     validateCampaignId(campaignId);

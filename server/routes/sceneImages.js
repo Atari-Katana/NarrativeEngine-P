@@ -5,7 +5,7 @@ import { CAMPAIGNS_DIR, SETTINGS_FILE, readJson, validateCampaignId } from '../l
 import { wrapAsync } from '../lib/asyncHandler.js';
 import { serverError } from '../lib/serverError.js';
 import { composeSceneImagePrompt } from '../services/sceneImageComposerService.js';
-import { generateSceneImage, getCampaignSceneImagesDir } from '../services/imageProvider.js';
+import { generateSceneImage, generateComfyImageDataUri, getCampaignSceneImagesDir } from '../services/imageProvider.js';
 
 export function createSceneImagesRouter(vault) {
     const router = Router();
@@ -167,6 +167,33 @@ export function createSceneImagesRouter(vault) {
         };
 
         res.json({ ok: true, attachment });
+    }));
+
+    // Native ComfyUI for the client-side image paths (NPC portraits, location
+    // illustrations). ComfyUI has no OpenAI-style /images/generations route, so those
+    // callers come here instead and get a data: URI back.
+    router.post('/api/images/comfyui', wrapAsync(async (req, res) => {
+        const { prompt, negativePrompt, width, height, imageConfig: clientImageConfig } = req.body;
+        if (!prompt) {
+            return res.status(400).json({ error: 'Missing prompt' });
+        }
+
+        const imageConfig = getActiveImageConfig(clientImageConfig);
+        if (!imageConfig || !imageConfig.endpoint) {
+            return res.status(400).json({ error: 'Image AI endpoint is not configured in Settings.' });
+        }
+        if (imageConfig.apiFormat !== 'comfyui') {
+            return res.status(400).json({ error: 'Image AI provider is not set to the ComfyUI format.' });
+        }
+
+        const dataUri = await generateComfyImageDataUri({
+            config: imageConfig,
+            prompt,
+            negativePrompt: negativePrompt || '',
+            width: Number(width) || 896,
+            height: Number(height) || 1152,
+        });
+        res.json({ ok: true, dataUri });
     }));
 
     router.delete('/api/scene-images/attachment', wrapAsync(async (req, res) => {

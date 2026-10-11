@@ -108,10 +108,55 @@ describe('generateNPCPortrait — OpenAI-compatible providers', () => {
         expect(result).toBe('https://cdn.test/x.png');
     });
 
+    it('accepts a b64_json reply as a data URI', async () => {
+        mockLlmFetch.mockResolvedValue(jsonResponse({ data: [{ b64_json: 'AAAA' }] }));
+        const result = await generateNPCPortrait({ endpoint: 'https://images.test/v1', apiKey: '', modelName: 'image-model' }, 'a harbor');
+        expect(result).toBe('data:image/png;base64,AAAA');
+    });
+
     it('throws when the endpoint is unset', async () => {
         await expect(generateNPCPortrait(
             { endpoint: '', apiKey: '', modelName: 'x' },
             'prompt',
         )).rejects.toThrow('Image AI not configured');
+    });
+});
+
+describe('generateNPCPortrait — native ComfyUI', () => {
+    const comfyConfig = {
+        endpoint: 'http://localhost:8188',
+        apiKey: '',
+        modelName: 'sd_xl_base_1.0.safetensors',
+        apiFormat: 'comfyui' as const,
+        comfyUi: { steps: 8, cfgScale: 1, sampler: 'euler', scheduler: 'beta57' },
+    };
+
+    beforeEach(() => {
+        mockLlmFetch.mockReset();
+        vi.spyOn(console, 'log').mockImplementation(() => {});
+        vi.spyOn(console, 'error').mockImplementation(() => {});
+    });
+
+    it('goes through the server ComfyUI route, never /images/generations', async () => {
+        const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ ok: true, dataUri: 'data:image/png;base64,AAAA' }));
+        vi.stubGlobal('fetch', fetchMock);
+
+        const result = await generateNPCPortrait(comfyConfig, 'a weathered sellsword', 'landscape');
+
+        expect(mockLlmFetch).not.toHaveBeenCalled();
+        const [url, init] = fetchMock.mock.calls[0];
+        expect(String(url)).toMatch(/\/images\/comfyui$/);
+        const body = JSON.parse(String(init.body));
+        expect(body).toMatchObject({ prompt: 'a weathered sellsword', width: 1536, height: 1024 });
+        expect(body.imageConfig.comfyUi.scheduler).toBe('beta57');
+        expect(body.negativePrompt).toContain('watermark');
+        expect(result).toBe('data:image/png;base64,AAAA');
+        vi.unstubAllGlobals();
+    });
+
+    it('surfaces the server error', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 502, statusText: 'Bad Gateway', json: async () => ({ error: 'ComfyUI rejected the workflow (400)' }) }));
+        await expect(generateNPCPortrait(comfyConfig, 'x')).rejects.toThrow(/ComfyUI rejected the workflow/);
+        vi.unstubAllGlobals();
     });
 });

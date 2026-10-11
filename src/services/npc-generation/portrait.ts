@@ -1,5 +1,6 @@
-import type { EndpointConfig } from '../../types';
+import type { ComfyUiSettings, EndpointConfig } from '../../types';
 import { llmFetch } from '../llm/llmFetch';
+import { API_BASE } from '../../lib/apiBase';
 import {
     isOpenRouterImageProvider,
     openRouterImagesUrl,
@@ -17,12 +18,42 @@ import {
 // in the positive prompt; both are needed.
 const PORTRAIT_NEGATIVE = 'multiple people, group, crowd, split screen, twins, double, text, words, writing, letters, font, typography, calligraphy, handwriting, captions, subtitles, nameplate, seal stamp, watermark, logo, signature';
 
+/** The image-role provider as the store hands it over: an LLMProvider, which carries
+ *  `comfyUi` when its apiFormat is 'comfyui'. */
+type ImageEndpointConfig = EndpointConfig & { comfyUi?: ComfyUiSettings };
+
+/** ComfyUI has no /images/generations route, so its images are made server-side by the
+ *  same workflow scene images use (comfyUi steps/cfg/sampler/scheduler/denoise apply). */
+async function generateViaComfyUI(config: ImageEndpointConfig, prompt: string, layout: 'portrait' | 'landscape'): Promise<string> {
+    const [width, height] = layout === 'landscape' ? [1536, 1024] : [896, 1152];
+    const res = await fetch(`${API_BASE}/images/comfyui`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, negativePrompt: PORTRAIT_NEGATIVE, width, height, imageConfig: config }),
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(`Failed to generate image: ${err.error || res.status}`);
+    }
+    const data = await res.json();
+    return data.dataUri;
+}
+
 /** Returns either a hosted image URL or a `data:` URI — both are accepted by
  *  downloadImageToLocal(), which hands the value to the server to fetch and store.
  *  Landscape layout shares this provider path with location illustrations. */
-export async function generateNPCPortrait(config: EndpointConfig, prompt: string, layout: 'portrait' | 'landscape' = 'portrait'): Promise<string> {
+export async function generateNPCPortrait(config: ImageEndpointConfig, prompt: string, layout: 'portrait' | 'landscape' = 'portrait'): Promise<string> {
     if (!config.endpoint) {
         throw new Error('Image AI not configured');
+    }
+
+    if (config.apiFormat === 'comfyui') {
+        try {
+            return await generateViaComfyUI(config, prompt, layout);
+        } catch (error) {
+            console.error('[Image Engine] Error generating ComfyUI image:', error);
+            throw error;
+        }
     }
 
     const openRouter = isOpenRouterImageProvider(config);
@@ -81,6 +112,10 @@ export async function generateNPCPortrait(config: EndpointConfig, prompt: string
         // Match nano-gpt return format
         if (data.data && data.data[0] && data.data[0].url) {
             return data.data[0].url;
+        }
+        // OpenAI-style base64 reply (response_format is a hint some servers ignore).
+        if (data.data && data.data[0] && data.data[0].b64_json) {
+            return `data:image/png;base64,${data.data[0].b64_json}`;
         }
 
         throw new Error('Unexpected output format from Image AI: ' + JSON.stringify(data));

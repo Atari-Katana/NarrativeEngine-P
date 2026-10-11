@@ -1,4 +1,4 @@
-// Native ComfyUI txt2img provider (scene images only).
+// Native ComfyUI txt2img provider (scene images, NPC portraits, location illustrations).
 //
 // Two workflow sources are supported:
 //   1. A built-in basic checkpoint txt2img graph (used when no custom JSON is set).
@@ -355,7 +355,7 @@ async function downloadImage(baseUrl, imageRef, fetchImpl) {
 }
 
 /**
- * Generate a single scene image via a native ComfyUI server and return the raw
+ * Generate a single image via a native ComfyUI server and return the raw
  * PNG/image Buffer. Queues the resolved workflow, polls history to completion,
  * discovers the first images[] output and downloads it.
  *
