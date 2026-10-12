@@ -12,6 +12,7 @@ import { SelectionActionsMenu } from './chat/SelectionActionsMenu';
 import { ChatActionStrip } from './chat/ChatActionStrip';
 import { ChatComposer } from './chat/ChatComposer';
 import { ChatNavFabs } from './chat/ChatNavFabs';
+import { ReadingControls } from './chat/ReadingControls';
 import { ChatMessageList } from './chat/ChatMessageList';
 import { GenerationTimeline } from './chat/GenerationTimeline';
 import { useSwipeVariants } from './hooks/useSwipeVariants';
@@ -312,7 +313,10 @@ export function ChatArea() {
                 onOpenSwipeSheet={setSwipeSheetMessageId}
                 onRetry={retry.retryStoryAI}
             />
-            <ChatNavFabs scrollContainerRef={scrollContainerRef} bottomRef={bottomRef} />
+            <div className="chat-side-rail">
+                <ReadingControls />
+                <ChatNavFabs scrollContainerRef={scrollContainerRef} bottomRef={bottomRef} />
+            </div>
             </div>
 
             <GenerationTimeline />

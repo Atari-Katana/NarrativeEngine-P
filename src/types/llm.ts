@@ -22,6 +22,12 @@ export type ComfyUiSettings = {
 
 export type AiTier = 'lite' | 'pro' | 'max';
 
+/** Story-column typography (separate from uiScale). See components/chat/readingPrefs.ts. */
+export type ReadingFont = 'serif' | 'sans';
+export type ReadingLeading = 'tight' | 'normal' | 'relaxed';
+export type ReadingWidth = 'narrow' | 'standard' | 'wide' | 'full';
+export type ReadingAlign = 'left' | 'center' | 'right';
+
 export type ThinkingEffort = 'off' | 'low' | 'medium' | 'high' | 'max';
 
 /** Preset slots that carry their own thinking level. Image generation has no thinking. */
@@ -181,6 +187,13 @@ export type AppSettings = {
     modLoadOrder?: string[];
     aiTier?: AiTier;                 // 'lite' | 'pro' | 'max' — gates which turn stages run (Phase 4)
     uiScale?: number;                // 0.7–1.3, default 1.0 — global UI zoom (ported from mobile settings)
+    /** Story reading area, independent of uiScale (which zooms the whole UI).
+     *  Projected as CSS variables on `.story-journal`; see readingPrefs.ts. */
+    readingFont?: ReadingFont;       // default 'serif'
+    readingSize?: number;            // px, 13–24, default 17
+    readingLeading?: ReadingLeading; // line height 1.4 / 1.55 / 1.75, default 'normal'
+    readingWidth?: ReadingWidth;     // column measure in em of readingSize, default 'standard'
+    readingAlign?: ReadingAlign;     // where the column sits in the story area, default 'center'
     /** Beta UI: opt-in restyle of the whole app (new palette, type scale and
      *  chrome density). Projected onto <html data-ui="beta"> by applyBetaUi;
      *  every rule lives in src/styles/beta.css behind that attribute, so OFF

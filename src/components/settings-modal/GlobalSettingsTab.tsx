@@ -4,6 +4,11 @@ import { useAppStore } from '../../store/useAppStore';
 import { VaultSection } from './VaultSection';
 import { LanguageSection } from './LanguageSection';
 import { BackgroundControl } from '../BackgroundControl';
+import type { ReadingAlign, ReadingFont, ReadingLeading, ReadingWidth } from '../../types';
+import {
+  READING_ALIGNS, READING_DEFAULTS, READING_FONTS, READING_LEADINGS, READING_WIDTHS, READING_SIZE_MAX, READING_SIZE_MIN,
+  clampReadingSize, normalizeReadingAlign, normalizeReadingFont, normalizeReadingLeading, normalizeReadingWidth,
+} from '../chat/readingPrefs';
 import { MAX_STORY_TIMEOUT_SECONDS, MIN_STORY_TIMEOUT_SECONDS, normalizeStoryTimeoutSeconds } from '../../services/llm/timeouts';
 
 /**
@@ -572,7 +577,7 @@ export function GlobalSettingsTab() {
             {Math.round((settings.uiScale ?? 1) * 100)}%
           </span>
         </div>
-        <p className="text-[9px] text-text-dim leading-tight">Global zoom. 100% is the default. Changes apply immediately.</p>
+        <p className="text-[9px] text-text-dim leading-tight">Zooms the whole interface. 100% is the default. Story text has its own size below.</p>
         <div className="flex flex-wrap gap-1.5">
           {[0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3].map(v => (
             <button
@@ -583,6 +588,58 @@ export function GlobalSettingsTab() {
               {Math.round(v * 100)}%
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Story text — the reading column only, independent of UI Scale.
+          Same settings as the Aa button beside the story (readingPrefs.ts). */}
+      <div className="flex flex-col bg-void p-3 border border-border rounded space-y-2">
+        <div className="flex items-center justify-between">
+          <label className="text-[11px] text-text-primary uppercase tracking-wider font-bold">Story Text</label>
+          <span className="text-terminal font-bold font-mono bg-terminal/10 px-2 py-0.5 rounded text-[10px]">
+            {clampReadingSize(settings.readingSize)}px
+          </span>
+        </div>
+        <p className="text-[9px] text-text-dim leading-tight">Font, size, line spacing, column width and alignment of the story. Also under the Aa button beside the story.</p>
+        {([
+          ['Font', READING_FONTS, normalizeReadingFont(settings.readingFont), (v: string) => updateSettings({ readingFont: v as ReadingFont })],
+          ['Line spacing', READING_LEADINGS, normalizeReadingLeading(settings.readingLeading), (v: string) => updateSettings({ readingLeading: v as ReadingLeading })],
+          ['Width', READING_WIDTHS, normalizeReadingWidth(settings.readingWidth), (v: string) => updateSettings({ readingWidth: v as ReadingWidth })],
+          ['Align', READING_ALIGNS, normalizeReadingAlign(settings.readingAlign), (v: string) => updateSettings({ readingAlign: v as ReadingAlign })],
+        ] as const).map(([label, options, current, set]) => (
+          <div key={label} className="flex items-center gap-3">
+            <span className="text-[10px] text-text-dim uppercase tracking-wider w-24 flex-shrink-0">{label}</span>
+            <div className="flex flex-wrap gap-1.5">
+              {options.map(o => (
+                <button
+                  key={o.value}
+                  onClick={() => set(o.value)}
+                  className={`px-2 py-1 text-[10px] uppercase font-mono border rounded transition-colors focus:outline-none ${current === o.value ? 'bg-terminal text-void border-terminal' : 'bg-surface border-border text-text-dim hover:text-text-primary hover:border-text-dim'}`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] text-text-dim uppercase tracking-wider w-24 flex-shrink-0">Size</span>
+          <input
+            type="range"
+            min={READING_SIZE_MIN}
+            max={READING_SIZE_MAX}
+            step={1}
+            value={clampReadingSize(settings.readingSize)}
+            onChange={(e) => updateSettings({ readingSize: clampReadingSize(Number(e.target.value)) })}
+            aria-label="Story text size"
+            className="flex-1 accent-terminal"
+          />
+          <button
+            onClick={() => updateSettings({ ...READING_DEFAULTS })}
+            className="px-2 py-1 text-[10px] uppercase font-mono border rounded bg-surface border-border text-text-dim hover:text-text-primary hover:border-text-dim focus:outline-none"
+          >
+            Reset
+          </button>
         </div>
       </div>
       </div>

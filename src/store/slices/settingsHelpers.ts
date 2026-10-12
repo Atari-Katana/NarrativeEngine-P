@@ -7,6 +7,7 @@ import { toast } from '../../components/Toast';
 import { applyLocale, detectLocale, isLocaleCode } from '../../i18n';
 import { getBuiltinTokenCap } from '../../services/payload/contributions/builtins';
 import { migratePresetSlotThinking } from './slotThinking';
+import { READING_DEFAULTS, clampReadingSize, normalizeReadingFont, normalizeReadingLeading, normalizeReadingWidth, normalizeReadingAlign } from '../../components/chat/readingPrefs';
 
 import { API_BASE as API } from '../../lib/apiBase';
 
@@ -107,6 +108,7 @@ export const defaultSettings: AppSettings = {
     retrievalAlgorithm: 'idf-rrf',
     archiveRecallDepth: 'standard',
     uiScale: 1.0,
+    ...READING_DEFAULTS,
     betaUi: false,
     imageStylePrompt: '',
     imageNegativePrompt: '',
@@ -443,6 +445,11 @@ export function migrateSettings(data: Record<string, unknown>): AppSettings {
         matureMode: (raw.matureMode as boolean) ?? false,
         aiTier: raw.aiTier as AiTier | undefined,
         uiScale: (raw.uiScale as number) ?? 1.0,
+        readingFont: normalizeReadingFont(raw.readingFont),
+        readingSize: clampReadingSize(raw.readingSize),
+        readingLeading: normalizeReadingLeading(raw.readingLeading),
+        readingWidth: normalizeReadingWidth(raw.readingWidth),
+        readingAlign: normalizeReadingAlign(raw.readingAlign),
         betaUi: (raw.betaUi as boolean) ?? false,
         embeddingModel: raw.embeddingModel as ('standard' | 'high') | undefined,
         imageStylePrompt: (raw.imageStylePrompt as string) ?? '',

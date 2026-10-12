@@ -161,13 +161,13 @@ html[data-ui="beta"] .chrome-label {
 }
 
 /* ── The story. This is the thing you read for hours. ──
-   It was 14px monospace (MessageBubble.tsx). */
+   It was 14px monospace (MessageBubble.tsx). Size, line height and column
+   width are the player's reading settings now (index.css, "Session journal"),
+   shared with the classic UI; beta contributes only the face, via --lamp-story. */
 html[data-ui="beta"] .gm-prose,
 html[data-ui="beta"] [data-ui="msg"] .gm-prose p,
 html[data-ui="beta"] [data-ui="msg"] .gm-prose li {
   font-family: var(--lamp-story);
-  font-size: 18px;
-  line-height: 1.7;
   letter-spacing: 0.002em;
 }
 html[data-ui="beta"] [data-ui="msg"] { font-family: var(--lamp-story); }
@@ -197,14 +197,11 @@ html[data-ui="beta"] [data-ui="composer-input"] textarea::placeholder {
 html[data-ui="beta"] .chat-panel { padding-top: 26px; }
 
 html[data-ui="beta"] [data-ui="msg-row"] {
-  /* The reading measure, set by measurement rather than by eye: 600px of 18px
-     EB Garamond renders ~80 characters per line. 780px measured 112 and 700px
-     measured 96 — both past the width where the eye starts losing its place on
-     the carriage return.
-     NOTE this is the ONE place the "fill the window" rule is deliberately not
+  /* The reading measure lives in the reading settings (readingPrefs.ts): 600px
+     of 18px EB Garamond measured ~80 characters per line, and 780px measured
+     112 — past the width where the eye loses its place on the carriage return.
+     This is the ONE place the "fill the window" rule is deliberately not
      applied. Chrome fills the window; body text is measured. */
-  max-width: 600px;
-  margin-inline: auto;
   width: 100%;
   justify-content: flex-start;
   position: relative;

@@ -496,48 +496,29 @@ html[style*="--lang-font-stack"] {
   font-family: var(--lang-font-stack);
 }
 
-/* Session journal: left anchored prose in classic and beta themes. */
+/* Session journal: the story column, in classic and beta themes alike.
+   Typography comes from the reading settings (readingPrefs.ts), set as inline
+   variables on .story-journal: --reading-size, --reading-leading and
+   --reading-measure (column width incl. the hover-rail gutter). The fallbacks
+   below are those settings' defaults. Serif is EB Garamond under beta (its
+   story face) and Palatino in classic. */
 html [data-ui="stage"] .story-journal {
-  --journal-width: 1280px;
-  --journal-font: 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif;
+  --journal-font: var(--lamp-story, 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif);
   padding: 24px clamp(16px, 3vw, 48px) 40px;
   scroll-padding-top: 24px;
 }
-html [data-ui="stage"] .story-journal[data-reading-width="compact"] { --journal-width: 880px; }
-html [data-ui="stage"] .story-journal[data-reading-width="wide"] { --journal-width: 1600px; }
 html [data-ui="stage"] .story-journal[data-reading-font="sans"] {
   --journal-font: 'Segoe UI', system-ui, sans-serif;
 }
-html [data-ui="stage"] .story-journal .journal-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  max-width: var(--journal-width);
-  padding-bottom: 16px;
-  margin-bottom: 26px;
-  border-bottom: 1px solid var(--color-border);
-  font: 11px/1.4 'Segoe UI', system-ui, sans-serif;
-  color: var(--color-text-dim);
-}
-.journal-title { letter-spacing: 0.12em; text-transform: uppercase; }
-.journal-reading-controls { display: flex; gap: 8px; }
-.journal-reading-controls select {
-  background: var(--color-void-lighter);
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  padding: 5px 7px;
-  color: var(--color-text-primary);
-  font: inherit;
-  cursor: pointer;
-}
-.journal-reading-controls select:focus-visible { outline: 2px solid var(--color-terminal); outline-offset: 2px; }
 html [data-ui="stage"] .story-journal .journal-pages {
   width: 100%;
-  max-width: var(--journal-width);
+  max-width: var(--reading-measure, 622px);
+  margin-inline: auto;
 }
+html [data-ui="stage"] .story-journal[data-reading-align="left"] .journal-pages { margin-inline: 0 auto; }
+html [data-ui="stage"] .story-journal[data-reading-align="right"] .journal-pages { margin-inline: auto 0; }
 html [data-ui="stage"] .story-journal [data-ui="msg-row"] {
-  width: 90%;
+  width: 100%;
   max-width: 100%;
   margin: 0 0 32px;
   justify-content: flex-start;
@@ -566,8 +547,8 @@ html [data-ui="stage"] .story-journal [data-ui="msg-meta"] {
 html [data-ui="stage"] .story-journal [data-ui="msg-meta"] > span { font-size: 10px; }
 html [data-ui="stage"] .story-journal .journal-prose {
   font-family: var(--lang-font-stack, var(--journal-font));
-  font-size: 18px;
-  line-height: 1.8;
+  font-size: var(--reading-size, 17px);
+  line-height: var(--reading-leading, 1.55);
   letter-spacing: 0;
   overflow-wrap: anywhere;
 }
@@ -598,7 +579,7 @@ html [data-ui="stage"] .story-journal .journal-prose blockquote {
 html [data-ui="stage"] .story-journal .journal-prose :is(pre, code) { font-family: var(--font-mono); }
 html [data-ui="stage"] .story-journal .journal-prose table { display: block; max-width: 100%; overflow-x: auto; }
 html [data-ui="stage"] .story-journal [data-ui="msg-row"][data-role="user"] {
-  width: 70%;
+  width: 85%;
   max-width: 100%;
   margin-left: auto;
   margin-right: 0;
@@ -612,7 +593,7 @@ html [data-ui="stage"] .story-journal .journal-pages [data-ui="msg-row"][data-ro
 }
 html [data-ui="stage"] .story-journal [data-ui="msg-row"][data-role="user"][data-editing="true"] {
   width: 100%;
-  max-width: var(--journal-width);
+  max-width: 100%;
   padding-left: 0;
 }
 html [data-ui="stage"] .story-journal [data-ui="msg"][data-role="user"] {
@@ -623,8 +604,8 @@ html [data-ui="stage"] .story-journal [data-ui="msg"][data-role="user"] {
 }
 html [data-ui="stage"] .story-journal [data-role="user"] .journal-prose {
   font-family: 'Segoe UI', system-ui, sans-serif;
-  font-size: 15px;
-  line-height: 1.65;
+  font-size: calc(var(--reading-size, 17px) * 0.88);
+  line-height: var(--reading-leading, 1.55);
 }
 html [data-ui="stage"] .story-journal [data-ui="msg"][data-role="system"] {
   border-left: 2px solid var(--color-ember);
@@ -652,8 +633,6 @@ html[data-has-bg="true"] [data-ui="stage"] .story-journal [data-ui="msg"] {
 }
 @media (max-width: 640px) {
   html [data-ui="stage"] .story-journal { padding: 16px 12px 28px; }
-  html [data-ui="stage"] .story-journal .journal-toolbar { align-items: flex-start; flex-direction: column; margin-bottom: 20px; }
-  html [data-ui="stage"] .story-journal .journal-prose { font-size: 17px; line-height: 1.75; }
   html [data-ui="stage"] .story-journal [data-ui="msg-row"] { width: 100%; margin-bottom: 24px; }
   html [data-ui="stage"] .story-journal [data-ui="msg-row"][data-role="user"] { width: 88%; }
 }
@@ -662,7 +641,15 @@ html[data-has-bg="true"] [data-ui="stage"] .story-journal [data-ui="msg"] {
 /* Live generation workflow, independent of mod-owned right-rail panels. */
 .generation-workspace { display: flex; flex: 1; min-height: 0; min-width: 0; }
 .story-workspace { display: flex; flex: 1; min-height: 0; min-width: 0; overflow: hidden; }
-.chat-message-navigation { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 6px; width: 48px; flex-shrink: 0; padding: 12px 6px; }
+.chat-side-rail { display: flex; flex-direction: column; width: 48px; flex-shrink: 0; min-height: 0; position: relative; }
+.chat-message-navigation { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 6px; width: 48px; flex: 1; min-height: 0; padding: 12px 6px; }
+/* Reading settings ("Aa"): top of the rail, opening leftward over the story. */
+.reading-controls { display: flex; justify-content: center; padding: 12px 6px 0; }
+.reading-controls-panel { position: absolute; top: 12px; right: calc(100% + 4px); z-index: 30; width: 260px; color: var(--color-text-primary); font-family: 'Segoe UI', system-ui, sans-serif; }
+.reading-step { display: flex; align-items: center; justify-content: center; width: 28px; height: 24px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-void); color: var(--color-text-dim); }
+.reading-step:hover:not(:disabled) { color: var(--color-text-primary); border-color: var(--color-text-dim); }
+.reading-step:disabled { opacity: 0.35; cursor: not-allowed; }
+.reading-step:focus-visible { outline: 2px solid var(--color-terminal); outline-offset: 1px; }
 .chat-message-navigation .chat-nav-fab { flex-shrink: 0; }
 .generation-sidebar { width: 292px; flex-shrink: 0; border-left: 1px solid var(--color-border); background: var(--color-void); display: flex; flex-direction: column; min-height: 0; color: var(--color-text-primary); font: 13px/1.5 'Segoe UI', system-ui, sans-serif; }
 .generation-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 20px 18px 16px; border-bottom: 1px solid var(--color-border); }

@@ -6,6 +6,7 @@ import { MessageBubble } from '../MessageBubble';
 import { ChatEmptyState } from './ChatEmptyState';
 import { UtilityCallStrip } from '../UtilityCallStrip';
 import { GenerationProgress } from '../GenerationProgress';
+import { normalizeReadingAlign, normalizeReadingFont, readingStyleVars } from './readingPrefs';
 import type { useSwipeVariants } from '../hooks/useSwipeVariants';
 import type { useSceneContinue } from '../hooks/useSceneContinue';
 import type { useMessageEditor } from '../hooks/useMessageEditor';
@@ -62,8 +63,6 @@ export function ChatMessageList({
     relationshipMemoriesNpcToNpc?: RelationshipMemoryRecord[];
     relationshipMemoryFaults?: RelationshipMemoryFault[];
 }) {
-    const [readingFont, setReadingFont] = useState('serif');
-    const [readingWidth, setReadingWidth] = useState('comfortable');
     const [visibleCount, setVisibleCount] = useState(10);
     const [loadStep, setLoadStep] = useState(10);
 
@@ -79,29 +78,15 @@ export function ChatMessageList({
     }, [messages]);
 
     return (
-        <div ref={scrollContainerRef} className="chat-panel story-journal flex-1 overflow-y-auto relative" data-reading-font={readingFont} data-reading-width={readingWidth}>
-            {messages.length > 0 && (
-                <div className="journal-toolbar">
-                    <span className="journal-title">Session journal</span>
-                    <div className="journal-reading-controls">
-                        <label>
-                            <span className="sr-only">Story font</span>
-                            <select aria-label="Story font" value={readingFont} onChange={event => setReadingFont(event.target.value)}>
-                                <option value="serif">Book serif</option>
-                                <option value="sans">Clean sans</option>
-                            </select>
-                        </label>
-                        <label>
-                            <span className="sr-only">Reading width</span>
-                            <select aria-label="Reading width" value={readingWidth} onChange={event => setReadingWidth(event.target.value)}>
-                                <option value="compact">Compact</option>
-                                <option value="comfortable">Comfortable</option>
-                                <option value="wide">Wide</option>
-                            </select>
-                        </label>
-                    </div>
-                </div>
-            )}
+        // Reading typography is a persisted setting (Settings → Display, or the
+        // Aa control beside the story), projected as CSS variables here.
+        <div
+            ref={scrollContainerRef}
+            className="chat-panel story-journal flex-1 overflow-y-auto relative"
+            data-reading-font={normalizeReadingFont(settings.readingFont)}
+            data-reading-align={normalizeReadingAlign(settings.readingAlign)}
+            style={readingStyleVars(settings)}
+        >
             <div className="journal-pages">
             {messages.length === 0 && (
                 <ChatEmptyState onCreateCharacter={onCreateCharacter} />
