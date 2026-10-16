@@ -2,6 +2,7 @@ import type { LoreChunk, ChatMessage } from '../../types';
 import { computeIdf, fuseRRF } from '../retrieval/lexicalFusion';
 import { getCachedKeywordRegex as getKeywordRegex, makeScanTextGetter } from '../retrieval/retrievalCore';
 import { isFieldLabelKeyword } from './fieldLabels';
+import { DEFAULT_LORE_DEPTH, loreRelevanceTopN, type LoreDepth } from './loreBudget';
 
 // ─── Group Competition ────────────────────────────────────────────────────
 function applyGroupCompetition(
@@ -134,12 +135,15 @@ function retrieveRelevantLoreClassic(
     const grouped = applyGroupCompetition(scored);
     grouped.sort((a, b) => b.score - a.score);
 
+    let retrievedAny = false;
     for (const { chunk } of grouped) {
         if (includedSet.has(chunk.id)) continue;
-        if (usedTokens + chunk.tokens > tokenBudget) continue;
+        // The best match always goes in, even over budget (see the IDF+RRF path).
+        if (retrievedAny && usedTokens + chunk.tokens > tokenBudget) continue;
         results.push(chunk);
         includedSet.add(chunk.id);
         usedTokens += chunk.tokens;
+        retrievedAny = true;
     }
 
     if (usedTokens < tokenBudget) {
@@ -174,6 +178,7 @@ function retrieveRelevantLoreIdfRrf(
     recentMessages: ChatMessage[],
     semanticCandidateIds: string[] | undefined,
     recommendedIds: string[] | undefined,
+    topN: number,
 ): LoreChunk[] {
     const results: LoreChunk[] = [];
     const includedSet = new Set<string>();
@@ -305,12 +310,29 @@ function retrieveRelevantLoreIdfRrf(
     const grouped = applyGroupCompetition(scoredForGroup);
     grouped.sort((a, b) => b.score - a.score);
 
+    // Relevance floor. RRF scores barely separate rank 1 from rank 10 (1/61 vs 1/71), so a
+    // score cutoff can't tell a strong match from a weak one. Instead a chunk must be picked by
+    // the recommender, found by both keyword and meaning search, or rank in the top `topN` of
+    // either. Without this the budget was also the target: any single weak keyword hit filled it.
+    const passesFloor = (id: string): boolean => {
+        if (recRankMap.has(id)) return true;
+        const kw = kwRankMap.get(id);
+        const emb = embRankMap.get(id);
+        if (kw !== undefined && emb !== undefined) return true;
+        return (kw !== undefined && kw < topN) || (emb !== undefined && emb < topN);
+    };
+
+    let retrievedAny = false;
     for (const { chunk } of grouped) {
         if (includedSet.has(chunk.id)) continue;
-        if (usedTokens + chunk.tokens > tokenBudget) continue;
+        if (!passesFloor(chunk.id)) continue;
+        // The best match always goes in, even over budget — otherwise a chunk larger than the
+        // budget (chunks run to LORE_CHUNK_MAX) could never be retrieved however relevant.
+        if (retrievedAny && usedTokens + chunk.tokens > tokenBudget) continue;
         results.push(chunk);
         includedSet.add(chunk.id);
         usedTokens += chunk.tokens;
+        retrievedAny = true;
     }
 
     // Linked entities cross-pull
@@ -349,6 +371,7 @@ export function retrieveRelevantLore(
     semanticCandidateIds?: string[],
     algorithm: 'classic' | 'idf-rrf' = 'idf-rrf',
     recommendedIds?: string[],
+    depth: LoreDepth = DEFAULT_LORE_DEPTH,
 ): LoreChunk[] {
     if (chunks.length === 0) return [];
 
@@ -364,6 +387,7 @@ export function retrieveRelevantLore(
     return retrieveRelevantLoreIdfRrf(
         chunks, userMessage, tokenBudget,
         messages, semanticCandidateIds, recommendedIds,
+        loreRelevanceTopN(depth),
     );
 }
 

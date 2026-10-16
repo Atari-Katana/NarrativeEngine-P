@@ -10,6 +10,7 @@ import {
   clampReadingSize, normalizeReadingAlign, normalizeReadingFont, normalizeReadingLeading, normalizeReadingWidth,
 } from '../chat/readingPrefs';
 import { MAX_STORY_TIMEOUT_SECONDS, MIN_STORY_TIMEOUT_SECONDS, normalizeStoryTimeoutSeconds } from '../../services/llm/timeouts';
+import { computeLoreBudget, normalizeLoreDepth } from '../../services/lore/loreBudget';
 
 /**
  * The six groups this tab divides into, in the order the blocks already appear
@@ -286,6 +287,39 @@ export function GlobalSettingsTab() {
         >
           <div className={`absolute top-[2px] w-4 h-4 rounded-full bg-surface transition-transform ${(settings.retrievalAlgorithm ?? 'idf-rrf') === 'idf-rrf' ? 'translate-x-[22px]' : 'translate-x-[2px]'}`} />
         </button>
+      </div>
+
+      {/* Lore Depth — lore RAG ceiling (share of context) and relevance-floor leniency */}
+      <div className="bg-void p-3 border border-border rounded space-y-2">
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-[11px] text-text-primary uppercase tracking-wider font-bold">
+              Lore Depth
+            </label>
+            <span className="text-terminal font-bold font-mono bg-terminal/10 px-2 py-0.5 rounded text-[10px]">
+              ≤{computeLoreBudget(settings.contextLimit, normalizeLoreDepth(settings.loreDepth)).toLocaleString()} tok
+            </span>
+          </div>
+          <p className="text-[9px] text-text-dim leading-tight">
+            The most lore a turn may pull in, scaled to your context window. Only clearly relevant
+            entries are used, so quiet scenes use less. Lean: tight and strict. Balanced: default.
+            Deep: big lore files, more lenient matching.
+          </p>
+        </div>
+        <div className="flex border border-border overflow-hidden rounded">
+          {(['lean', 'balanced', 'deep'] as const).map(depth => (
+            <button
+              key={depth}
+              onClick={() => updateSettings({ loreDepth: depth })}
+              className={`flex-1 py-1.5 text-[10px] uppercase tracking-wider transition-colors focus:outline-none ${normalizeLoreDepth(settings.loreDepth) === depth
+                ? 'bg-terminal text-void font-bold'
+                : 'bg-void text-text-dim hover:text-text-primary'
+              }`}
+            >
+              {depth}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Indexing Speed — bulk-embed throughput vs CPU headroom during world imports */}

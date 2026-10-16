@@ -164,6 +164,7 @@ export type AppSettings = {
     /** @deprecated Unread since 2026-10-05: the Archive Planner is switched in Block View (`planner`). Kept so stored settings load. */
     enableArchivePlanner?: boolean;
     retrievalAlgorithm?: 'classic' | 'idf-rrf';
+    loreDepth?: 'lean' | 'balanced' | 'deep';  // lore RAG ceiling as a share of contextLimit + relevance-floor leniency; default 'balanced' (services/lore/loreBudget.ts)
     archiveRecallDepth?: 'lean' | 'standard' | 'deep';  // archive recall ceiling; default 'standard' (desktop). 'lean' = mobile parity (3/4/5)
     matureMode?: boolean;            // default false; gates mature-tier NPC traits/wants (NPC Agency Phase 2)
     /** WO-C §9.3 (C2) — feature flag for the optional AI adaptation pass on SillyTavern card

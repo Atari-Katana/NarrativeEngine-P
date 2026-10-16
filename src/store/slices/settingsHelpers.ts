@@ -7,6 +7,7 @@ import { toast } from '../../components/Toast';
 import { applyLocale, detectLocale, isLocaleCode } from '../../i18n';
 import { getBuiltinTokenCap } from '../../services/payload/contributions/builtins';
 import { migratePresetSlotThinking } from './slotThinking';
+import { normalizeLoreDepth } from '../../services/lore/loreBudget';
 import { READING_DEFAULTS, clampReadingSize, normalizeReadingFont, normalizeReadingLeading, normalizeReadingWidth, normalizeReadingAlign } from '../../components/chat/readingPrefs';
 
 import { API_BASE as API } from '../../lib/apiBase';
@@ -106,6 +107,7 @@ export const defaultSettings: AppSettings = {
     storyTimeoutSeconds: DEFAULT_STORY_TIMEOUT_SECONDS,
     enableArchivePlanner: false,
     retrievalAlgorithm: 'idf-rrf',
+    loreDepth: 'balanced',
     archiveRecallDepth: 'standard',
     uiScale: 1.0,
     ...READING_DEFAULTS,
@@ -441,6 +443,7 @@ export function migrateSettings(data: Record<string, unknown>): AppSettings {
         verboseUtilityLogging: raw.verboseUtilityLogging as boolean,
         enableArchivePlanner: (raw.enableArchivePlanner as boolean) ?? false,
         retrievalAlgorithm: (raw.retrievalAlgorithm as 'classic' | 'idf-rrf') ?? 'idf-rrf',
+        loreDepth: normalizeLoreDepth(raw.loreDepth),
         archiveRecallDepth: (raw.archiveRecallDepth as 'lean' | 'standard' | 'deep') ?? 'standard',
         matureMode: (raw.matureMode as boolean) ?? false,
         aiTier: raw.aiTier as AiTier | undefined,
