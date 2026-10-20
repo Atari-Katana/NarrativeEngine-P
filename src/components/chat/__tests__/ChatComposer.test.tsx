@@ -56,7 +56,7 @@ describe('ChatComposer - STT Live Transcription', () => {
         );
 
         // Find the mic button
-        const micButton = screen.getByTitle('Voice input (Speech-to-Text)');
+        const micButton = screen.getByTitle(/Voice input \(Speech-to-Text\)/i);
         expect(micButton).toBeDefined();
 
         // Banner should not be visible before clicking mic

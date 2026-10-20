@@ -1,10 +1,11 @@
-import { Loader2, Volume2, Play, Pause, RotateCw, Trash2 } from 'lucide-react';
+import { useRef, useEffect } from 'react';
+import { Loader2, Volume2, Play, Pause, RotateCw, Trash2, Gauge, X } from 'lucide-react';
 import { chunkSentencesForTTS, splitWords } from '../../services/tts/proseStripper';
 
 /**
- * Karaoke TTS playback panel — sticky status/controls header over a
- * scrollable highlight-synced transcript. Extracted from MessageBubble;
- * purely presentational, all state lives in useTtsPlayback.
+ * Enhanced Karaoke TTS playback panel — sticky glassmorphic status/controls header
+ * with segmented audio buffer progress, equalizer visualization, and highlight-synced
+ * auto-scrolling transcript.
  */
 export function TtsPlaybackPanel({
     prose,
@@ -22,6 +23,7 @@ export function TtsPlaybackPanel({
     onSpeak,
     onWipe,
     onSentenceClick,
+    onClose,
 }: {
     prose: string;
     ttsLoading: boolean;
@@ -38,63 +40,185 @@ export function TtsPlaybackPanel({
     onSpeak: () => void;
     onWipe: () => void;
     onSentenceClick: (sentenceIndex: number) => void;
+    onClose?: () => void;
 }) {
+    const isActivelySpeaking = ttsPlaying && !ttsPaused;
+
     return (
-        <div className="mb-3 rounded border border-terminal/30 bg-terminal/5 max-h-[160px] overflow-y-auto relative">
-            {/* Sticky header — status + controls, always visible while scrolling */}
-            <div className="sticky top-0 z-10 bg-void-darker/95 backdrop-blur-sm border-b border-terminal/20 px-2 py-1 flex items-center gap-1 justify-between flex-wrap">
-                <span className="flex items-center gap-1.5 text-[9px] text-terminal/60 uppercase tracking-widest shrink-0">
-                    {ttsLoading ? <Loader2 size={10} className="animate-spin" /> : ttsFinished ? <RotateCw size={10} /> : ttsPaused ? <Pause size={10} /> : <Volume2 size={10} />}
-                    {ttsLoading ? 'Synthesizing' : ttsFinished ? 'Finished' : ttsPaused ? 'Paused' : 'Reading'}
-                </span>
-                {totalChunks > 0 && (
-                    <span className="text-[9px] text-text-dim/60 normal-case tracking-normal shrink-0 mr-1 flex items-center gap-1.5">
-                        <span title="Playback position">
-                            ▶ {ttsFinished ? totalChunks : (activeSentenceIdx >= 0 ? activeSentenceIdx + 1 : 0)}/{totalChunks}
-                        </span>
-                        {generatedChunks < totalChunks && (
-                            <span title="Kokoro generation progress" className="text-terminal/70 flex items-center gap-0.5">
-                                <Loader2 size={8} className="animate-spin" /> gen {generatedChunks}/{totalChunks}
+        <div
+            data-ui="tts-playback-panel"
+            className="mb-3 rounded-lg border border-terminal/30 bg-void-darker/90 backdrop-blur-md shadow-md shadow-terminal/5 max-h-[190px] overflow-hidden flex flex-col transition-all"
+        >
+            {/* Sticky Modern Audio Console Header */}
+            <div className="z-10 bg-void-darker border-b border-terminal/20 px-3 py-2 flex flex-col gap-1.5 shrink-0">
+                <div className="flex items-center gap-2 justify-between flex-wrap">
+                    {/* Status Pill with Visual Equalizer */}
+                    <div className="flex items-center gap-2">
+                        <div
+                            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold font-mono tracking-wider uppercase transition-colors ${
+                                isActivelySpeaking
+                                    ? 'bg-terminal/20 text-terminal border border-terminal/40 shadow-[0_0_8px_rgba(167,139,250,0.3)]'
+                                    : ttsLoading
+                                        ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30 animate-pulse'
+                                        : ttsPaused
+                                            ? 'bg-ice-dim/20 text-ice-dim border border-border'
+                                            : ttsFinished
+                                                ? 'bg-terminal/10 text-terminal/80 border border-terminal/20'
+                                                : 'bg-void text-text-dim border border-border'
+                            }`}
+                        >
+                            {ttsLoading ? (
+                                <Loader2 size={11} className="animate-spin text-amber-400" />
+                            ) : isActivelySpeaking ? (
+                                <div className="flex items-center gap-[2px] h-3">
+                                    <span className="w-[2px] bg-terminal rounded-full animate-[pulse_0.6s_ease-in-out_infinite] h-2" />
+                                    <span className="w-[2px] bg-terminal rounded-full animate-[pulse_0.4s_ease-in-out_infinite_0.15s] h-3" />
+                                    <span className="w-[2px] bg-terminal rounded-full animate-[pulse_0.7s_ease-in-out_infinite_0.3s] h-1.5" />
+                                    <span className="w-[2px] bg-terminal rounded-full animate-[pulse_0.5s_ease-in-out_infinite_0.1s] h-2.5" />
+                                </div>
+                            ) : ttsFinished ? (
+                                <RotateCw size={11} />
+                            ) : ttsPaused ? (
+                                <Pause size={11} />
+                            ) : (
+                                <Volume2 size={11} />
+                            )}
+                            <span>
+                                {ttsLoading
+                                    ? 'Synthesizing'
+                                    : isActivelySpeaking
+                                        ? 'Narrating'
+                                        : ttsPaused
+                                            ? 'Paused'
+                                            : ttsFinished
+                                                ? 'Finished'
+                                                : 'Voice Ready'}
+                            </span>
+                        </div>
+
+                        {/* Chunk Progress Badge */}
+                        {totalChunks > 0 && (
+                            <span className="text-[10px] font-mono text-text-dim flex items-center gap-1.5">
+                                <span className="font-semibold text-text-primary">
+                                    {ttsFinished ? totalChunks : Math.max(0, activeSentenceIdx + 1)}/{totalChunks}
+                                </span>
+                                {generatedChunks < totalChunks && (
+                                    <span className="text-amber-400/90 flex items-center gap-1 text-[9px]">
+                                        <Loader2 size={9} className="animate-spin" /> buf {generatedChunks}/{totalChunks}
+                                    </span>
+                                )}
                             </span>
                         )}
-                        {generatedChunks >= totalChunks && !ttsFinished && (
-                            <span className="text-terminal/50">all buffered</span>
-                        )}
-                    </span>
-                )}
-                {/* Controls inline in the header */}
-                <div className="flex items-center gap-1 ml-auto">
-                    {ttsPlaying && (
-                        <button title={ttsPaused ? 'Resume' : 'Pause'} onClick={onPauseResume} className="text-text-dim hover:text-terminal px-1 py-0.5 rounded flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider">
-                            {ttsPaused ? <><Play size={10} /> Resume</> : <><Pause size={10} /> Pause</>}
-                        </button>
-                    )}
-                    <span className="text-[8px] text-text-dim/50 normal-case tracking-normal hidden lg:inline">click a sentence to jump</span>
-                    <div className="w-px h-4 bg-border/40 mx-0.5" />
-                    <button title="Slower" onClick={() => onSpeedChange(-0.25)} className="text-text-dim hover:text-terminal px-1 py-0.5 rounded text-[9px] font-bold">
-                        ½×
-                    </button>
-                    <span className="text-[9px] text-text-dim font-mono w-9 text-center">{playbackRate.toFixed(2)}×</span>
-                    <button title="Faster" onClick={() => onSpeedChange(0.25)} className="text-text-dim hover:text-terminal px-1 py-0.5 rounded text-[9px] font-bold">
-                        2×
-                    </button>
-                    {ttsFinished && (
-                        <>
-                            <div className="w-px h-4 bg-border/40 mx-0.5" />
-                            <button title="Replay" onClick={onSpeak} className="text-terminal hover:text-terminal px-1 py-0.5 rounded flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider">
-                                <Play size={10} /> Replay
+
+                        <span className="text-[9px] text-text-dim/50 italic hidden sm:inline">
+                            click a sentence to jump
+                        </span>
+                    </div>
+
+                    {/* Playback Action Controls */}
+                    <div className="flex items-center gap-1.5 ml-auto">
+                        {/* Play/Pause/Resume Main Button */}
+                        {ttsPlaying && (
+                            <button
+                                title={ttsPaused ? 'Resume playback' : 'Pause playback'}
+                                onClick={onPauseResume}
+                                className={`px-2.5 py-1 rounded-full flex items-center gap-1.5 text-[10px] font-bold font-mono uppercase tracking-wider transition-all ${
+                                    ttsPaused
+                                        ? 'bg-terminal/20 text-terminal border border-terminal/40 hover:bg-terminal/30'
+                                        : 'bg-void-lighter text-text-primary border border-border hover:border-terminal/50'
+                                }`}
+                            >
+                                {ttsPaused ? <Play size={11} fill="currentColor" /> : <Pause size={11} />}
+                                <span>{ttsPaused ? 'Resume' : 'Pause'}</span>
                             </button>
-                        </>
-                    )}
-                    {/* Trash — only thing that wipes the cache */}
-                    <div className="w-px h-4 bg-border/40 mx-0.5" />
-                    <button title="Delete generated audio" onClick={onWipe} className="text-text-dim hover:text-red-400 px-1 py-0.5 rounded flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider">
-                        <Trash2 size={10} />
-                    </button>
+                        )}
+
+                        {/* Replay */}
+                        {ttsFinished && (
+                            <button
+                                title="Replay voice narration"
+                                onClick={onSpeak}
+                                className="px-2.5 py-1 rounded-full bg-terminal/15 border border-terminal/30 text-terminal hover:bg-terminal/25 flex items-center gap-1.5 text-[10px] font-bold font-mono uppercase tracking-wider transition-all"
+                            >
+                                <Play size={11} fill="currentColor" />
+                                <span>Replay</span>
+                            </button>
+                        )}
+
+                        {/* Speed Cycle Control */}
+                        <div className="flex items-center gap-0.5 bg-void-lighter border border-border/80 px-1 py-0.5 rounded-full text-[10px] font-mono">
+                            <Gauge size={11} className="text-text-dim ml-0.5 mr-0.5" />
+                            <button
+                                title="Slower (decrease speed)"
+                                onClick={() => onSpeedChange(-0.25)}
+                                className="px-1 py-0.5 text-text-dim hover:text-terminal transition-colors"
+                            >
+                                −
+                            </button>
+                            <span className="w-8 text-center font-bold text-text-primary">
+                                {playbackRate.toFixed(2)}×
+                            </span>
+                            <button
+                                title="Faster (increase speed)"
+                                onClick={() => onSpeedChange(0.25)}
+                                className="px-1 py-0.5 text-text-dim hover:text-terminal transition-colors"
+                            >
+                                +
+                            </button>
+                        </div>
+
+                        {/* Wipe/Delete Audio Cache */}
+                        <button
+                            title="Delete cached audio files for this message"
+                            onClick={onWipe}
+                            className="p-1.5 text-text-dim hover:text-red-400 transition-colors rounded-full hover:bg-red-500/10"
+                        >
+                            <Trash2 size={12} />
+                        </button>
+
+                        {/* Optional Close Panel */}
+                        {onClose && (
+                            <button
+                                title="Dismiss karaoke player"
+                                onClick={onClose}
+                                className="p-1.5 text-text-dim hover:text-text-primary transition-colors rounded-full hover:bg-void-lighter"
+                            >
+                                <X size={12} />
+                            </button>
+                        )}
+                    </div>
                 </div>
+
+                {/* Segmented Timeline Progress Bar */}
+                {totalChunks > 0 && (
+                    <div className="w-full h-1 bg-void rounded-full overflow-hidden flex gap-[2px]">
+                        {Array.from({ length: totalChunks }).map((_, i) => {
+                            const isCurrent = i === activeSentenceIdx && !ttsFinished;
+                            const isDone = i < activeSentenceIdx || ttsFinished;
+                            const isBuffered = i < generatedChunks;
+
+                            return (
+                                <div
+                                    key={i}
+                                    title={`Sentence ${i + 1}/${totalChunks}`}
+                                    className={`flex-1 h-full rounded-full transition-all duration-300 ${
+                                        isCurrent
+                                            ? 'bg-terminal shadow-[0_0_6px_rgba(167,139,250,0.8)]'
+                                            : isDone
+                                                ? 'bg-terminal/70'
+                                                : isBuffered
+                                                    ? 'bg-terminal/25'
+                                                    : 'bg-border/30'
+                                    }`}
+                                />
+                            );
+                        })}
+                    </div>
+                )}
             </div>
-            {/* Karaoke text scrolls under the frozen header */}
-            <div className="px-2 py-1.5">
+
+            {/* Scrollable Karaoke Transcript with Highlight Sync */}
+            <div className="p-3 overflow-y-auto max-h-[130px] font-sans selection:bg-terminal/30">
                 <KaraokeText
                     prose={prose}
                     sentenceIdx={activeSentenceIdx}
@@ -110,9 +234,8 @@ export function TtsPlaybackPanel({
 
 /**
  * Karaoke-style prose renderer for TTS highlight sync.
- * Each sentence is clickable (jumps playback to that chunk). Generated chunks
- * are normal text; ungenerated chunks are dimmed + italicized. The active word
- * in the active sentence is highlighted. Past sentences are dimmed.
+ * Each sentence is clickable (jumps playback to that chunk).
+ * Auto-scrolls smoothly to keep the active sentence visible.
  */
 export function KaraokeText({
     prose,
@@ -131,39 +254,59 @@ export function KaraokeText({
 }) {
     const sentences = chunkSentencesForTTS(prose);
     const isInteractive = !!onSentenceClick && (sentenceIdx >= 0 || finished);
+    const activeSentenceRef = useRef<HTMLSpanElement | null>(null);
+
+    // Auto-scroll the active sentence into view inside the panel
+    useEffect(() => {
+        if (activeSentenceRef.current) {
+            activeSentenceRef.current.scrollIntoView({
+                behavior: 'smooth',
+                block: 'nearest',
+            });
+        }
+    }, [sentenceIdx]);
+
     return (
-        <div className={`text-[11px] leading-relaxed ${finished ? 'text-text-dim/50' : 'text-text-primary'}`}>
+        <div className={`text-xs leading-relaxed transition-opacity ${finished ? 'text-text-dim/60' : 'text-text-primary'}`}>
             {sentences.map((sent, si) => {
                 const words = splitWords(sent);
                 const isPast = sentenceIdx >= 0 && si < sentenceIdx;
                 const isActive = si === sentenceIdx && !finished;
                 const isGenerated = si < generatedChunks || finished;
                 const canClick = isInteractive && isGenerated;
+
                 return (
                     <span
                         key={si}
+                        ref={isActive ? activeSentenceRef : null}
                         onClick={canClick ? () => onSentenceClick!(si) : undefined}
-                        className={[
-                            isPast || finished ? 'text-text-dim/40' : '',
-                            !isGenerated ? 'text-text-dim/30 italic' : '',
-                            canClick ? 'cursor-pointer hover:bg-terminal/20 hover:text-terminal rounded px-0.5 transition-colors' : '',
-                        ].join(' ')}
+                        className={`inline-block my-0.5 rounded transition-all ${
+                            isActive
+                                ? 'bg-terminal/10 border-l-2 border-terminal pl-1.5 pr-1 py-0.5 rounded-r shadow-sm'
+                                : isPast || finished
+                                    ? 'text-text-dim/40'
+                                    : !isGenerated
+                                        ? 'text-text-dim/30 italic'
+                                        : 'text-text-primary'
+                        } ${canClick ? 'cursor-pointer hover:bg-terminal/20 hover:text-terminal' : ''}`}
                     >
-                        {words.map((w, wi) => (
-                            <span
-                                key={wi}
-                                className={
-                                    isActive && wi === wordIdx
-                                        ? 'bg-terminal/30 text-terminal font-bold rounded px-[1px]'
-                                        : isActive
-                                            ? 'text-text-primary'
-                                            : ''
-                                }
-                            >
-                                {w}{' '}
-                            </span>
-                        ))}
-                        {' '}
+                        {words.map((w, wi) => {
+                            const isWordActive = isActive && wi === wordIdx;
+                            return (
+                                <span
+                                    key={wi}
+                                    className={`transition-all duration-150 ${
+                                        isWordActive
+                                            ? 'bg-terminal text-void font-bold px-1 py-0.5 rounded shadow-[0_0_8px_rgba(167,139,250,0.6)]'
+                                            : isActive
+                                                ? 'text-text-primary'
+                                                : ''
+                                    }`}
+                                >
+                                    {w}{' '}
+                                </span>
+                            );
+                        })}
                     </span>
                 );
             })}

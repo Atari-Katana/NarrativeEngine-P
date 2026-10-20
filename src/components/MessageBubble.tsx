@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { AlertCircle, RotateCw } from 'lucide-react';
+import { AlertCircle, RotateCw, Volume2, Loader2, Play } from 'lucide-react';
 import type { ChatMessage, DebugSection, RelationshipMemoryFault, RelationshipMemoryRecord, RelationshipStance } from '../types';
 import { DebugPayloadView } from './DebugPayloadView';
 import { ToolCallChips } from './chat/ToolCallChips';
@@ -218,6 +218,53 @@ export function MessageBubble({
                     <span className="text-[9px] text-text-dim">
                         {new Date(msg.timestamp).toLocaleTimeString()}
                     </span>
+                    {canSpeak && (
+                        <button
+                            type="button"
+                            onClick={tts.ttsPlaying ? tts.handlePauseResume : tts.handleSpeak}
+                            title={
+                                tts.ttsPlaying
+                                    ? tts.ttsPaused
+                                        ? 'Resume voice narration'
+                                        : 'Pause voice narration'
+                                    : tts.ttsFinished
+                                        ? 'Replay voice narration'
+                                        : 'Listen to GM narration (Text-to-Speech)'
+                            }
+                            className={`ml-auto flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-mono uppercase tracking-wider transition-all select-none ${
+                                tts.ttsPlaying && !tts.ttsPaused
+                                    ? 'bg-terminal/20 text-terminal border border-terminal/40 shadow-[0_0_8px_rgba(167,139,250,0.3)]'
+                                    : tts.ttsLoading
+                                        ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30 animate-pulse'
+                                        : tts.ttsFinished
+                                            ? 'bg-void text-terminal/80 border border-border hover:border-terminal/50'
+                                            : 'bg-void/80 text-text-dim hover:text-terminal hover:border-terminal/40 border border-border'
+                            }`}
+                        >
+                            {tts.ttsLoading ? (
+                                <Loader2 size={10} className="animate-spin text-amber-400" />
+                            ) : tts.ttsPlaying && !tts.ttsPaused ? (
+                                <Volume2 size={10} className="animate-pulse" />
+                            ) : tts.ttsPaused ? (
+                                <Play size={10} />
+                            ) : tts.ttsFinished ? (
+                                <RotateCw size={10} />
+                            ) : (
+                                <Volume2 size={10} />
+                            )}
+                            <span className="hidden xs:inline">
+                                {tts.ttsLoading
+                                    ? 'Synthesizing'
+                                    : tts.ttsPlaying && !tts.ttsPaused
+                                        ? 'Playing'
+                                        : tts.ttsPaused
+                                            ? 'Resume'
+                                            : tts.ttsFinished
+                                                ? 'Replay'
+                                                : 'Listen'}
+                            </span>
+                        </button>
+                    )}
                 </div>
 
                 <div className="gm-prose journal-prose">
