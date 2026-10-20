@@ -111,25 +111,27 @@ export function Header() {
     }, [ordered]);
 
     return (
-        <header data-ui="appbar" className="h-12 bg-surface border-b border-border flex items-center px-2 sm:px-4 gap-1 sm:gap-2 shrink-0">
-            <button
-                onClick={toggleDrawer}
-                className="flex items-center justify-center w-8 h-8 rounded-sm border border-border/40 hover:border-terminal bg-void-lighter hover:bg-terminal/5 text-text-dim hover:text-terminal transition-colors shrink-0 cursor-pointer"
-                title={drawerOpen ? t('header.drawer.close') : t('header.drawer.open')}
-                aria-label={drawerOpen ? t('header.drawer.close') : t('header.drawer.open')}
-            >
-                {drawerOpen ? <PanelLeftClose size={15} /> : <PanelLeftOpen size={15} />}
-            </button>
+        <header data-ui="appbar" className="h-12 bg-surface border-b border-border flex items-center px-2 sm:px-3 gap-1 sm:gap-2 shrink-0 min-w-0 overflow-hidden justify-between">
+            <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 shrink">
+                <button
+                    onClick={toggleDrawer}
+                    className="flex items-center justify-center w-8 h-8 rounded-sm border border-border/40 hover:border-terminal bg-void-lighter hover:bg-terminal/5 text-text-dim hover:text-terminal transition-colors shrink-0 cursor-pointer"
+                    title={drawerOpen ? t('header.drawer.close') : t('header.drawer.open')}
+                    aria-label={drawerOpen ? t('header.drawer.close') : t('header.drawer.open')}
+                >
+                    {drawerOpen ? <PanelLeftClose size={15} /> : <PanelLeftOpen size={15} />}
+                </button>
 
-            <h1 className="chrome-label hidden md:block text-terminal text-sm font-bold tracking-[0.3em] uppercase shrink-0">
-                {t('header.title')}
-            </h1>
-            <span className="hidden md:inline text-[9px] font-mono text-text-dim shrink-0" title={t('header.version.tooltip', { version: APP_VERSION })}>
-                v{APP_VERSION}
-            </span>
+                <h1 className="chrome-label hidden sm:block text-terminal text-xs md:text-sm font-bold tracking-[0.16em] md:tracking-[0.22em] uppercase shrink-0 select-none">
+                    {t('header.title')}
+                </h1>
+                <span className="hidden lg:inline text-[9px] font-mono text-text-dim/80 shrink-0" title={t('header.version.tooltip', { version: APP_VERSION })}>
+                    v{APP_VERSION}
+                </span>
 
-            <div className="hidden md:flex flex-1 items-center gap-4">
-                <TokenGauge />
+                <div className="flex items-center min-w-0 shrink">
+                    <TokenGauge />
+                </div>
             </div>
 
             {/*
@@ -224,12 +226,12 @@ function renderHeaderBuiltin(id: string, deps: {
                 <button
                     key="aiTier"
                     onClick={deps.onCycleTier}
-                    className="chrome-label flex items-center gap-1.5 h-8 px-2.5 rounded-sm border border-border/40 hover:border-terminal bg-void-lighter hover:bg-terminal/5 text-text-dim hover:text-terminal transition-colors shrink-0 cursor-pointer text-[10px] font-bold uppercase tracking-wider font-mono"
+                    className="chrome-label flex items-center gap-1.5 h-8 px-2 sm:px-2.5 rounded-sm border border-border/40 hover:border-terminal bg-void-lighter hover:bg-terminal/5 text-text-dim hover:text-terminal transition-colors shrink-0 cursor-pointer text-[10px] font-bold uppercase tracking-wider font-mono"
                     title={t('header.aiTier.tooltip', { tier: aiTier.toUpperCase() })}
                     aria-label={t('header.aiTier.aria', { tier: aiTier })}
                 >
                     <Cpu size={13} />
-                    <span className="hidden sm:inline">{aiTier}</span>
+                    <span className="hidden xs:inline">{aiTier}</span>
                 </button>
             );
         case 'settings':
@@ -237,12 +239,12 @@ function renderHeaderBuiltin(id: string, deps: {
                 <button
                     key="settings"
                     onClick={deps.onToggleSettings}
-                    className="chrome-label flex items-center gap-1.5 h-8 px-2.5 rounded-sm border border-border/40 hover:border-terminal bg-void-lighter hover:bg-terminal/5 text-text-dim hover:text-terminal transition-colors shrink-0 cursor-pointer text-[10px] font-bold uppercase tracking-wider font-mono"
+                    className="chrome-label flex items-center gap-1.5 h-8 px-2 sm:px-2.5 rounded-sm border border-border/40 hover:border-terminal bg-void-lighter hover:bg-terminal/5 text-text-dim hover:text-terminal transition-colors shrink-0 cursor-pointer text-[10px] font-bold uppercase tracking-wider font-mono"
                     title={t('header.settings.tooltip')}
                     aria-label={t('header.settings.aria')}
                 >
                     <Settings size={13} />
-                    <span className="hidden sm:inline">{t('header.settings.label')}</span>
+                    <span className="hidden xl:inline">{t('header.settings.label')}</span>
                 </button>
             );
         case 'exit':
@@ -250,12 +252,12 @@ function renderHeaderBuiltin(id: string, deps: {
                 <button
                     key="exit"
                     onClick={deps.onExit}
-                    className="chrome-label flex items-center gap-1.5 h-8 px-2.5 rounded-sm border border-border/40 hover:border-ember bg-void-lighter hover:bg-ember/5 text-text-dim hover:text-ember transition-colors shrink-0 cursor-pointer text-[10px] font-bold uppercase tracking-wider font-mono"
+                    className="chrome-label flex items-center gap-1.5 h-8 px-2 sm:px-2.5 rounded-sm border border-border/40 hover:border-ember bg-void-lighter hover:bg-ember/5 text-text-dim hover:text-ember transition-colors shrink-0 cursor-pointer text-[10px] font-bold uppercase tracking-wider font-mono"
                     title={t('header.exit.tooltip')}
                     aria-label={t('header.exit.aria')}
                 >
                     <LogOut size={13} />
-                    <span className="hidden sm:inline">{t('header.exit.label')}</span>
+                    <span className="hidden xl:inline">{t('header.exit.label')}</span>
                 </button>
             );
         default:

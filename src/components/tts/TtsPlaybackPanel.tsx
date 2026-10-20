@@ -47,13 +47,13 @@ export function TtsPlaybackPanel({
     return (
         <div
             data-ui="tts-playback-panel"
-            className="mb-3 rounded-lg border border-terminal/30 bg-void-darker/90 backdrop-blur-md shadow-md shadow-terminal/5 max-h-[190px] overflow-hidden flex flex-col transition-all"
+            className="mb-2 rounded-lg border border-terminal/30 bg-void-darker/90 backdrop-blur-md shadow-md shadow-terminal/5 max-h-[135px] overflow-hidden flex flex-col transition-all"
         >
             {/* Sticky Modern Audio Console Header */}
-            <div className="z-10 bg-void-darker border-b border-terminal/20 px-3 py-2 flex flex-col gap-1.5 shrink-0">
-                <div className="flex items-center gap-2 justify-between flex-wrap">
+            <div className="z-10 bg-void-darker border-b border-terminal/20 px-2.5 py-1.5 flex flex-col gap-1 shrink-0">
+                <div className="flex items-center gap-2 justify-between min-w-0">
                     {/* Status Pill with Visual Equalizer */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 shrink">
                         <div
                             className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold font-mono tracking-wider uppercase transition-colors ${
                                 isActivelySpeaking
@@ -218,7 +218,7 @@ export function TtsPlaybackPanel({
             </div>
 
             {/* Scrollable Karaoke Transcript with Highlight Sync */}
-            <div className="p-3 overflow-y-auto max-h-[130px] font-sans selection:bg-terminal/30">
+            <div className="p-2 sm:px-2.5 overflow-y-auto max-h-[75px] font-sans selection:bg-terminal/30">
                 <KaraokeText
                     prose={prose}
                     sentenceIdx={activeSentenceIdx}

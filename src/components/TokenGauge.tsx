@@ -81,7 +81,7 @@ export function TokenGauge() {
     const hisPct = Math.max(0, usedPct - sysPct);
 
     return (
-        <div data-ui="gauge" className="flex items-center gap-2.5 shrink-0 px-3">
+        <div data-ui="gauge" className="flex items-center gap-1.5 sm:gap-2 shrink min-w-0 px-1 sm:px-2">
             <span
                 data-ui="gauge-bar"
                 title={`Context ${Math.round(usedPct)}% used — ${adjustedSystemTokens} system, ${historyTokens} history, ${remaining} free`}
@@ -89,11 +89,11 @@ export function TokenGauge() {
             >
                 <i data-part="sys" /><i data-part="his" />
             </span>
-            <span data-ui="gauge-pct">{Math.round(usedPct)}%</span>
-            <span className="text-[10px] text-text-dim uppercase tracking-widest font-mono font-bold shrink-0">
+            <span data-ui="gauge-pct" className="shrink-0 text-[11px] font-mono">{Math.round(usedPct)}%</span>
+            <span className="text-[10px] text-text-dim uppercase tracking-wider font-mono font-bold shrink-0 hidden xs:inline" title="Context Token Gauge">
                 CTX
             </span>
-            <div className="flex items-center gap-2 text-[10px] font-mono shrink-0">
+            <div className="hidden xl:flex items-center gap-1.5 text-[10px] font-mono shrink-0" title={`System: ${adjustedSystemTokens}, History: ${historyTokens}, Free: ${remaining}`}>
                 <span className="text-ember font-bold">SYS:{adjustedSystemTokens}{registerTokens > 0 ? <span className="text-amber-400 font-bold">(+{registerTokens})</span> : ''}</span>
                 <span className="text-text-dim/40">|</span>
                 <span className="text-ice font-bold">HIS:{historyTokens}</span>
