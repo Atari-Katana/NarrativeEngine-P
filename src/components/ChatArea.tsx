@@ -269,6 +269,16 @@ export function ChatArea() {
         // their own departure line and the journey still commits on send.
     };
 
+    const handleAppendText = (appended: string) => {
+        if (!appended.trim()) return;
+        setInput(prev => {
+            const sep = prev.length > 0 && !prev.endsWith(' ') ? ' ' : '';
+            return prev + sep + appended.trim();
+        });
+        if (deepArmed) setDeepArmed(false);
+        setTimeout(resizeToContent, 0);
+    };
+
     return (
         <div data-ui="stage" className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
             {context.sceneNoteActive && (
@@ -364,6 +374,7 @@ export function ChatArea() {
                     onAttachFromDataTransfer={(data) => attachFromDataTransfer(data, input)}
                     onCaptionChange={setAttachmentCaption}
                     onRemoveAttachment={clearAttachment}
+                    onAppendText={handleAppendText}
                     gallery={galleryMention}
                 />
             </div>

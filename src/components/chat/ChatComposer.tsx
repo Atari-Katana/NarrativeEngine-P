@@ -1,11 +1,12 @@
 import { useRef } from 'react';
 import type { RefObject } from 'react';
-import { Send, Square, ImagePlus } from 'lucide-react';
+import { Send, Square, ImagePlus, Mic, MicOff } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { ChatAttachmentChip } from './ChatAttachmentChip';
 import type { ChatAttachment } from '../hooks/useChatAttachment';
 import { GalleryPicker, GalleryArmedChips, GallerySuggestions } from './GalleryComposerBar';
 import type { useGalleryMention } from '../hooks/useGalleryMention';
+import { useSpeechToText } from '../hooks/useSpeechToText';
 
 /**
  * Bottom composer row: active-preset selector, deep-search armed chip,
@@ -26,6 +27,7 @@ export function ChatComposer({
     onAttachFromDataTransfer,
     onCaptionChange,
     onRemoveAttachment,
+    onAppendText,
     gallery,
 }: {
     input: string;
@@ -42,11 +44,42 @@ export function ChatComposer({
     onAttachFromDataTransfer?: (data: DataTransfer | null) => boolean;
     onCaptionChange?: (caption: string) => void;
     onRemoveAttachment?: () => void;
+    onAppendText?: (text: string) => void;
     gallery?: ReturnType<typeof useGalleryMention>;
 }) {
     const settings = useAppStore(s => s.settings);
     const deepArmed = useAppStore(s => s.deepArmed);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleFinalSpeech = (transcript: string) => {
+        if (!transcript.trim()) return;
+        if (onAppendText) {
+            onAppendText(transcript);
+        } else if (inputRef.current) {
+            const separator = input.length > 0 && !input.endsWith(' ') ? ' ' : '';
+            const nextVal = input + separator + transcript.trim();
+            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+                window.HTMLTextAreaElement.prototype,
+                'value'
+            )?.set;
+            if (nativeInputValueSetter) {
+                nativeInputValueSetter.call(inputRef.current, nextVal);
+            } else {
+                inputRef.current.value = nextVal;
+            }
+            inputRef.current.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    };
+
+    const {
+        isSupported: sttSupported,
+        isListening: sttListening,
+        interimTranscript,
+        error: sttError,
+        toggleListening,
+    } = useSpeechToText({
+        onFinalResult: handleFinalSpeech,
+    });
 
     // Paste an image straight into the box. Only swallows the event when an
     // image was actually found, so pasting text still behaves normally.
@@ -92,6 +125,42 @@ export function ChatComposer({
                     onRemove={onRemoveAttachment}
                 />
             )}
+            {sttListening && (
+                <div
+                    data-ui="stt-processing-banner"
+                    className="flex items-center gap-2 px-3 py-1.5 mb-2 text-xs bg-void-darker/95 border border-terminal/40 rounded shadow-sm text-text-primary backdrop-blur-sm animate-in fade-in duration-200"
+                >
+                    <div className="relative flex h-2 w-2 shrink-0">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-terminal shrink-0 flex items-center gap-1">
+                        <Mic size={11} className="animate-pulse" />
+                        STT Live:
+                    </span>
+                    <div className="flex-1 min-w-0 font-mono text-[12px] truncate">
+                        {interimTranscript ? (
+                            <span className="text-terminal font-semibold italic">
+                                "{interimTranscript}"
+                            </span>
+                        ) : (
+                            <span className="text-text-dim/60 italic">
+                                Listening... speak your action or dialogue
+                            </span>
+                        )}
+                    </div>
+                    {interimTranscript && (
+                        <span className="text-[9px] text-terminal/70 font-mono shrink-0 animate-pulse">
+                            processing...
+                        </span>
+                    )}
+                </div>
+            )}
+            {sttError && (
+                <div className="text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded mb-2 flex items-center justify-between">
+                    <span>{sttError}</span>
+                </div>
+            )}
             <div data-ui="composer-input" className="flex gap-1 border border-border bg-void focus-within:border-terminal transition-colors items-end p-1 rounded-sm">
                 <div className="relative shrink-0 mb-[4px] ml-1">
                     <select
@@ -133,6 +202,25 @@ export function ChatComposer({
                         <ImagePlus size={15} />
                     </button>
                 )}
+                <button
+                    type="button"
+                    onClick={toggleListening}
+                    disabled={isStreaming}
+                    title={
+                        !sttSupported
+                            ? 'Speech-to-text not supported in this browser (use Chrome, Edge, or Safari)'
+                            : sttListening
+                                ? 'Stop voice recording'
+                                : 'Voice input (Speech-to-Text)'
+                    }
+                    className={`h-[32px] w-[32px] mb-[4px] rounded transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center shrink-0 ${
+                        sttListening
+                            ? 'text-red-400 bg-red-500/20 border border-red-500/40 animate-pulse'
+                            : 'text-text-dim hover:text-terminal hover:bg-terminal/10'
+                    }`}
+                >
+                    {sttListening ? <MicOff size={15} /> : <Mic size={15} />}
+                </button>
                 <textarea
                     ref={inputRef}
                     value={input}
